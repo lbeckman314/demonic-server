@@ -1,0 +1,4 @@
+*.pem
+node_modules/
+config.js
+*.sw*
