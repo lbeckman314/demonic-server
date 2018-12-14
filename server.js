@@ -18,19 +18,12 @@ wss.on('connection', function connection(ws) {
     };
 
     let child = spawn('sh', options);
-
-
     child.unref();
-
-    //const child = spawn('./devilish');
-
-    //console.log("child:", child);
-
     child.stdin.setEncoding('utf-8');
-    //child.stdout.pipe(process.stdout);
-
 
     let first = true;
+    programs = ["devilish", "matriz", "palindrome", "prime"];
+    files = ["m1", "m2"];
 
     ws.on('message', function incoming(message) {
         //console.log('received: %s', message);
@@ -38,14 +31,33 @@ wss.on('connection', function connection(ws) {
             first = false;
             switch(message) {
                 case "devilish":
-                    child = spawn('sh', ['-c', './devilish'], options);
+                    child = spawn('sh', ['-c', './programs/devilish'], options);
+                    //child = spawn('sh', ['-c', './programs/devilish -c "cd /home/demo/"'], options);
                     break;
-                case "prime":
-                    child = spawn('sh', ['-c', './prime.out'], options);
+
+                case "ls":
+                    for (i = 0; i < programs.length; i++) {
+                        ws.send(programs[i] + "\n");
+                    }
+                    for (i = 0; i < files.length; i++) {
+                        ws.send(files[i] + "\n");
+                    }
+                    ws.send(">");
+                    first = true;
                     break;
+
+                case "matriz":
+                    child = spawn('sh', ['-c', './programs/matriz.sh add ./files/m1 ./files/m1'], options);
+                    break;
+
                 case "palindrome":
-                    child = spawn('sh', ['-c', './palindrome'], options);
+                    child = spawn('sh', ['-c', './programs/palindrome.out'], options);
                     break;
+
+                case "prime":
+                    child = spawn('sh', ['-c', './programs/prime.out'], options);
+                    break;
+
                 default:
                     first = true;
                     console.log("Invalid program.");
@@ -79,7 +91,7 @@ wss.on('connection', function connection(ws) {
                 console.log(`child process exited with code ${code}`);
                 first = true;
                 child.kill("SIGINT");
-                ws.send(">");
+                ws.send("> ");
             });
 
         }
