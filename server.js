@@ -4,6 +4,22 @@ const fs = require('fs');
 
 const server = require('./config.js');
 
+function noop() {}
+
+function heartbeat() {
+    this.isAlive = true;
+}
+
+const interval = setInterval(function ping() {
+    wss.clients.forEach(function each(ws) {
+        if (ws.isAlive === false) return ws.terminate();
+
+        ws.isAlive = false;
+        ws.ping(noop);
+    });
+}, 30000);
+
+
 const wss = new WebSocket.Server({ server });
 
 console.log("Waiting for clients...");
@@ -11,58 +27,116 @@ console.log("Waiting for clients...");
 wss.on('connection', function connection(ws) {
     console.log("Client connected!");
 
+    ws.isAlive = true;
+    ws.on('pong', heartbeat);
+
     const { spawn } = require('child_process');
     const options = {
         detached: true,
         stdio: 'pipe'
     };
 
-    let child = spawn('sh', options);
+    let child = spawn('ls', options);
     child.unref();
     child.stdin.setEncoding('utf-8');
 
     let first = true;
-    programs = ["devilish", "matriz", "palindrome", "prime"];
+    programs = ["matriz", "palindrome", "prime", "withfeathers"];
     files = ["m1", "m2"];
+    userPrompt = "> ";
 
     ws.on('message', function incoming(message) {
         //console.log('received: %s', message);
         if (first == true) {
             first = false;
-            switch(message) {
-                case "devilish":
-                    child = spawn('sh', ['-c', './programs/devilish'], options);
-                    //child = spawn('sh', ['-c', './programs/devilish -c "cd /home/demo/"'], options);
+            messages = message.split(" ");
+            for (i = 0; i < messages.length; i++) {
+                console.log(messages[i]);
+            }
+            switch(messages[0]) {
+
+                case "cat":
+                    child = spawn('cat', [`./files/${messages[1]}`], options);
                     break;
 
                 case "ls":
                     for (i = 0; i < programs.length; i++) {
-                        ws.send(programs[i] + "\n");
+                        ws.send(programs[i] + "\n", function ack(error) {
+                            console.error("ERROR:", error);
+                        });
                     }
                     for (i = 0; i < files.length; i++) {
-                        ws.send(files[i] + "\n");
+                        ws.send(files[i] + "\n", function ack(error) {
+                            console.error("ERROR:", error);
+                        });
                     }
-                    ws.send(">");
+                    ws.send(userPrompt, function ack(error) {
+                        console.error("ERROR:", error);
+                    });
                     first = true;
                     break;
 
+
+                case "./matriz":
                 case "matriz":
-                    child = spawn('sh', ['-c', './programs/matriz.sh add ./files/m1 ./files/m1'], options);
+                    for (i = 0; i < messages.length; i++) {
+                        //console.log(`!!: ${messages[i]}`);
+                    }
+                    if (messages[3]) {
+                        child = spawn('./programs/matriz.sh', [ `${messages[1]}`, `./files/${messages[2]}`, `./files/${messages[3]}`], options);
+                    }
+                    else {
+                        child = spawn('./programs/matriz.sh', [ `${messages[1]}`, `./files/${messages[2]}`], options);
+                    }
                     break;
 
+                case "TAB":
+                    ws.send("TAB received\n", function ack(error) {
+                        console.error("ERROR:", error);
+                    });
+                    ws.send(userPrompt, function ack(error) {
+                        console.error("ERROR:", error);
+                    });
+                    first = true;
+                    break;
+
+                case "./palindrome":
                 case "palindrome":
-                    child = spawn('sh', ['-c', './programs/palindrome.out'], options);
+                    child = spawn('./programs/palindrome.out', options);
                     break;
 
+                case "./prime":
                 case "prime":
-                    child = spawn('sh', ['-c', './programs/prime.out'], options);
+                    if (messages[1] <= 1000000) {
+                        child = spawn('./programs/prime.out', [`${messages[1]}`], options);
+                    }
+
+                    else {
+                        ws.send("Prime number must be less than or equal to 1000000.\n", function ack(error) {
+                            console.error("ERROR:", error);
+                        });
+                        first = true;
+                        ws.send(userPrompt, function ack(error) {
+                            console.error("ERROR:", error);
+                        });
+                        child.kill("SIGINT");
+                    }
+                    break;
+
+                case "python withfeathers":
+                case "withfeathers":
+                    child = spawn('python3',  ['./programs/withfeathers/main.py', `${messages[1]}`], options);
                     break;
 
                 default:
                     first = true;
                     console.log("Invalid program.");
-                    ws.send("Invalid program.\n");
-                    ws.send(">");
+                    ws.send("Invalid program.\n", function ack(error) {
+                        console.error("ERROR:", error);
+                    });
+                    ws.send(userPrompt, function ack(error) {
+                        console.error("ERROR:", error);
+                    });
                     child.kill("SIGINT");
             }
 
@@ -71,7 +145,9 @@ wss.on('connection', function connection(ws) {
                 //console.log(`stdout: ${data}`);
                 //console.log("SENDING TO CLIENT:", data.toString());
                 //res += data.toString();
-                ws.send(data.toString());
+                ws.send(data.toString(), function ack(error) {
+                    console.error("ERROR:", error);
+                });
                 //return res;
                 //res = ""
             });
@@ -80,7 +156,9 @@ wss.on('connection', function connection(ws) {
                 //console.log(`stdout: ${data}`);
                 //console.log("SENDING TO CLIENT:", data.toString());
                 //res += data.toString();
-                ws.send(data.toString());
+                ws.send(data.toString(), function ack(error) {
+                    console.error("ERROR:", error);
+                });
                 //return res;
                 //res = ""
             });
@@ -91,14 +169,26 @@ wss.on('connection', function connection(ws) {
                 console.log(`child process exited with code ${code}`);
                 first = true;
                 child.kill("SIGINT");
-                ws.send("> ");
+                ws.send(userPrompt, function ack(error) {
+                    console.error("ERROR:", error);
+                });
             });
 
         }
 
 
         else {
-            child.stdin.write(message + "\n");
+            if (message == "SIGINT") {
+                ws.send("SIGINT received.\n", function ack(error) {
+                    console.error("ERROR:", error);
+                });
+                //ws.send(userPrompt);
+                child.kill("SIGINT");
+                first = true;
+            }
+            else {
+                child.stdin.write(message + "\n");
+            }
         }
         //child.stdin.write("exit\n");
         //child.stdin.end();
