@@ -197,4 +197,4 @@ wss.on('connection', function connection(ws) {
 
 });
 
-server.listen(process.argv || 8181);
+server.listen(process.argv[2] || 8181);
