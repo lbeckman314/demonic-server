@@ -14,8 +14,8 @@ cp config-example.js config.js
 # edit key, certificate, and passphrase information
 nano config.js
 
-# run server
-node server.js
+# run server (if no port number is provided, 12345 in this example, the server will default to port 8181)
+node server.js 12345
 
 # edit server information
 nano demo.js
