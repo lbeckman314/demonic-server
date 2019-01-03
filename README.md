@@ -1,6 +1,6 @@
 # demo
 
-A fake terminal cleans up user input and sends it to the server. The server then parses the input, and if it matches a predefined command, spawns a child process of that command/program.
+A fake terminal cleans up user input and sends it to the server. The server then parses the input, and if it matches a predefined command, spawns a child process of that command/program. I really liked the ability to try out haskell interactively [here](https://www.haskell.org/) and [here](https://tryhaskell.org/), so this is something like that.
 
 ![demo screenshot](demo.png)
 
