@@ -39,6 +39,7 @@ wss.on('connection', function connection(ws) {
     let child = spawn('ls', options);
     child.unref();
     child.stdin.setEncoding('utf-8');
+    child.stdout.setEncoding('utf-8');
 
     let first = true;
     programs = ["matriz", "palindrome", "prime", "withfeathers"];
@@ -66,9 +67,9 @@ wss.on('connection', function connection(ws) {
 
                 first = true;
 
-                let song = "Daisy, Daisy,\n" + 
-                    "Give me your answer, do!\n" + 
-                    "I'm half crazy,\n" + 
+                let song = "Daisy, Daisy,\n" +
+                    "Give me your answer, do!\n" +
+                    "I'm half crazy,\n" +
                     "All for the love of you!\n"
 
                 ws.send(song , function ack(error) {
@@ -170,7 +171,7 @@ wss.on('connection', function connection(ws) {
                         break;
 
                     case "zigzag-server":
-                        child = spawn('python3',  ['-u', 'programs/zigzag/zigzag-server.py', '-a'], options);
+                        child = spawn('python3',  ['-u', 'programs/zigzag/zigzag-server.py'], options);
                         break;
 
                     case "zigzag-client":
@@ -200,10 +201,16 @@ wss.on('connection', function connection(ws) {
 
             //let res = ""
             child.stdout.on('data', (data) => {
+                var AU = require('ansi_up');
+                var ansi_up = new AU.default;
+
+
+                let sendData = ansi_up.ansi_to_html(data.toString());
+
                 console.log(`stdout: ${data}`);
                 //console.log("SENDING TO CLIENT:", data.toString());
                 //res += data.toString();
-                ws.send(data.toString(), function ack(error) {
+                ws.send(sendData, function ack(error) {
                     console.error("ERROR:", error);
                 });
                 //return res;
@@ -251,7 +258,7 @@ wss.on('connection', function connection(ws) {
                 first = true;
             }
             else {
-				console.log("writing to child:", message);
+                console.log("writing to child:", message);
                 child.stdin.write(message + "\n");
             }
         }
