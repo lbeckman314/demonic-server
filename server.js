@@ -22,10 +22,10 @@ const interval = setInterval(function ping() {
 
 const wss = new WebSocket.Server({ server });
 
-console.log("Waiting for clients...");
+//console.log("Waiting for clients...");
 
 wss.on('connection', function connection(ws) {
-    console.log("Client connected!");
+    //console.log("Client connected!");
 
     ws.isAlive = true;
     ws.on('pong', heartbeat);
@@ -97,6 +97,7 @@ wss.on('connection', function connection(ws) {
 
                     case "ls":
                         for (i = 0; i < programs.length; i++) {
+                            console.log("sending programs");
                             ws.send(programs[i] + "\n", function ack(error) {
                                 console.error("ERROR:", error);
                             });
@@ -167,7 +168,7 @@ wss.on('connection', function connection(ws) {
 
                     case "./devilish":
                     case "devilish":
-                    child = spawn('firejail', ['--quiet', '--net=none', '--private', '--chroot=files/fire', '/usr/local/bin/devilish.out'], options);
+                    child = spawn('firejail', ['--quiet', '--net=none', '--hostname=demonic', '--rlimit-nproc=100', '--rlimit-as=50000000', '--nice=10', '--private=/home/demo', '--private-tmp', '--chroot=/var/www/demo/files/fire', '/usr/local/bin/devilish.out'], options);
                         break;
 
                     case "zigzag-server":
@@ -195,17 +196,16 @@ wss.on('connection', function connection(ws) {
                         ws.send(userPrompt, function ack(error) {
                             console.error("ERROR:", error);
                         });
+
                         child.kill("SIGINT");
                 }
             }
 
             //let res = ""
             child.stdout.on('data', (data) => {
-                var AU = require('ansi_up');
-                var ansi_up = new AU.default;
 
 
-                let sendData = ansi_up.ansi_to_html(data.toString());
+                let sendData = data.toString();
 
                 console.log(`stdout: ${data}`);
                 //console.log("SENDING TO CLIENT:", data.toString());
