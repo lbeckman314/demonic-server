@@ -8,4 +8,4 @@ const server = new https.createServer({
     passphrase: 'PASSWORD'
 });
 
-module.exports= server;
+module.exports = server;
