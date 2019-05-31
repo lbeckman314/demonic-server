@@ -1,5 +1,5 @@
 {
-  "name": "hello-world",
+  "name": "demo-lbeckman314",
   "version": "1.0.0",
   "description": "Hello world with express and node.js",
   "main": "app.js",
@@ -9,6 +9,7 @@
   "author": "OSU",
   "license": "ISC",
   "dependencies": {
+    "ansi_up": "^4.0.3",
     "body-parser": "^1.13.3",
     "exec": "^0.2.1",
     "express": "^4.16.3",

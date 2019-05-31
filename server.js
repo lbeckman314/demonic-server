@@ -1,8 +1,11 @@
 const WebSocket = require('ws');
-const https = require('https');
 const fs = require('fs');
 
 const server = require('./config.js');
+
+const AU = require('ansi_up');
+const ansi_up = new AU.default;
+
 
 function noop() {}
 
@@ -25,7 +28,7 @@ const wss = new WebSocket.Server({ server });
 //console.log("Waiting for clients...");
 
 wss.on('connection', function connection(ws) {
-    //console.log("Client connected!");
+    console.log("Client connected!");
 
     ws.isAlive = true;
     ws.on('pong', heartbeat);
@@ -203,9 +206,7 @@ wss.on('connection', function connection(ws) {
 
             //let res = ""
             child.stdout.on('data', (data) => {
-
-
-                let sendData = data.toString();
+                let sendData = ansi_up.ansi_to_html(data)
 
                 console.log(`stdout: ${data}`);
                 //console.log("SENDING TO CLIENT:", data.toString());

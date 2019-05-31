@@ -13,199 +13,199 @@ const socket = new WebSocket('wss://liambeckman.com:8181');
 const userPrompt = "devilish";
 
 var MYLIBRARY = MYLIBRARY || (function(){
-	var _args = {}; // private
+    var _args = {}; // private
 
-	return {
-		init : function(Args) {
-			_args = Args;
-			// some other initialising
-		},
-		helloWorld : function() {
-			//alert('Hello World! :: ' + _args[0]);
-			//console.log('Hello World! :: ' + _args[0]);
-			return _args[0];
-		}
-	};
+    return {
+        init : function(Args) {
+            _args = Args;
+            // some other initialising
+        },
+        helloWorld : function() {
+            //alert('Hello World! :: ' + _args[0]);
+            //console.log('Hello World! :: ' + _args[0]);
+            return _args[0];
+        }
+    };
 }());
 
 
 document.addEventListener('DOMContentLoaded', function () {
-	let terminal = document.getElementById("terminal");
-	terminal.spellcheck = false;
-	console.log("terminal:", terminal);
-	console.log("Connecting to server...");
-	terminal.value = "Connecting...\n";
-	// Connection opened
-	socket.onopen = function (event) {
-		console.log("Success!");
-		//terminal.value += "OK\n";
-		//command = readline.question(": ");
-		console.log("Sending initial message to server.");
-		//terminal.value += "Sending initial message to server.\n";
-		terminal.value = "Press ENTER to blast off!\n\n";
+    let terminal = document.getElementById("terminal");
+    terminal.spellcheck = false;
+    console.log("terminal:", terminal);
+    console.log("Connecting to server...");
+    terminal.value = "Connecting...\n";
+    // Connection opened
+    socket.onopen = function (event) {
+        console.log("Success!");
+        //terminal.value += "OK\n";
+        //command = readline.question(": ");
+        console.log("Sending initial message to server.");
+        //terminal.value += "Sending initial message to server.\n";
+        terminal.value = "Press ENTER to blast off!\n\n";
 
-		let userPrompt = MYLIBRARY.helloWorld();
+        let userPrompt = MYLIBRARY.helloWorld();
 
-		terminal.value += "> " + userPrompt;
+        terminal.value += "> " + userPrompt;
 
-		//socket.send("devilish");
+        //socket.send("devilish");
 
-		let message = "";
-		let messages = [];
-		let commands = [];
-		let commNum = 0;
-		let up = 0;
-		let down = 0;
-		let ctrl = false;
-		// Listen for messages
-		socket.onmessage = function(event) {
-			//console.log("MESSAGE:", event.data);
-			terminal.value += event.data;
-			message = event.data.toString();
-			console.log("MESSAGE:", message);
-			messages = message.split("\n");
-			terminal.scrollTop = terminal.scrollHeight;
-			console.log("MESSAGES:", messages);
+        let message = "";
+        let messages = [];
+        let commands = [];
+        let commNum = 0;
+        let up = 0;
+        let down = 0;
+        let ctrl = false;
+        // Listen for messages
+        socket.onmessage = function(event) {
+            //console.log("MESSAGE:", event.data);
+            terminal.value += event.data;
+            message = event.data.toString();
+            console.log("MESSAGE:", message);
+            messages = message.split("\n");
+            terminal.scrollTop = terminal.scrollHeight;
+            console.log("MESSAGES:", messages);
 
-			console.log("COMMAND:", comm);
-		}
+            console.log("COMMAND:", comm);
+        }
 
-		// https://stackoverflow.com/questions/22092762/how-to-detect-ctrlc-and-ctrlv-key-pressing-using-regular-expression/22092839
-		document.getElementById('terminal').addEventListener("keydown",function(e){
-			e = e || window.event;
-			var key = e.which || e.keyCode; // keyCode detection
-			var ctrl = e.ctrlKey ? e.ctrlKey : ((key === 17) ? true : false); // ctrl detection
+        // https://stackoverflow.com/questions/22092762/how-to-detect-ctrlc-and-ctrlv-key-pressing-using-regular-expression/22092839
+        document.getElementById('terminal').addEventListener("keydown",function(e){
+            e = e || window.event;
+            var key = e.which || e.keyCode; // keyCode detection
+            var ctrl = e.ctrlKey ? e.ctrlKey : ((key === 17) ? true : false); // ctrl detection
 
-			if ( key == 76 && ctrl ) {
-				console.log("Ctrl + L Pressed !");
-				terminal.value = "> ";
-				event.preventDefault();
-				e.preventDefault();
-				terminal.focus();
-			} 
-			else if ( key == 67 && ctrl ) {
-				console.log("Ctrl + C Pressed !");
-				//e.preventDefault();
-				//event.preventDefault();
-				socket.send("SIGINT");
-				terminal.value += "\n";
-				//terminal.value = terminal.value.replace(/.*$/ ,"> ");
-			}
+            if ( key == 76 && ctrl ) {
+                console.log("Ctrl + L Pressed !");
+                terminal.value = "> ";
+                event.preventDefault();
+                e.preventDefault();
+                terminal.focus();
+            }
+            else if ( key == 67 && ctrl ) {
+                console.log("Ctrl + C Pressed !");
+                //e.preventDefault();
+                //event.preventDefault();
+                socket.send("SIGINT");
+                terminal.value += "\n";
+                //terminal.value = terminal.value.replace(/.*$/ ,"> ");
+            }
 
-			else if ( key == 85 && ctrl ) {
-				console.log("Ctrl + U Pressed !");
-				e.preventDefault();
-				//event.preventDefault();
-				terminal.value = terminal.value.replace(/.*$/ ,"> ");
-			}
+            else if ( key == 85 && ctrl ) {
+                console.log("Ctrl + U Pressed !");
+                e.preventDefault();
+                //event.preventDefault();
+                terminal.value = terminal.value.replace(/.*$/ ,"> ");
+            }
 
-		},false);
-
-
-		document.getElementById('terminal').onkeydown = function (event) {
-			let key = event.keyCode;
-			let lines = terminal.value.split("\n");
-
-			console.log("key:", key);
-
-			if (key == 8) {
-				console.log(lines[lines.length - 1].length);
-				if (lines[lines.length - 1].length <= 2) {
-					console.log("backspace detected");
-					event.preventDefault();
-				}
-			}
-
-			else if (key == 46) {
-				console.log("delete detected");
-				//terminal.value += "\n> ";
-			}
-
-			else if (key == 9) {
-				event.preventDefault();
-				terminal.value += "TAB detected";
-				terminal.value += "\n> ";
-				console.log("TAB detected");
-				//socket.send("TAB");
-				//terminal.value += "\n> ";
-			}
+        },false);
 
 
-			else if (key == 38) {
-				console.log("up arrow detected");
-				event.preventDefault();
-				if ((up - down) < commands.length && down <= up) {
-					up += 1;
-					console.log("up:", up);
-					console.log("down:", down);
-					console.log("commands.length:", commands.length);
-					terminal.value = terminal.value.replace(/.*$/ ,"> " + commands[commands.length - up + down]);
-				}
-				console.log("commands:", commands);
-				//terminal.value += "\n> ";
-			}
+        document.getElementById('terminal').onkeydown = function (event) {
+            let key = event.keyCode;
+            let lines = terminal.value.split("\n");
 
-			else if (key == 40) {
-				console.log("down arrow detected");
-				event.preventDefault();
-				if (down < up && (up - down) <= commands.length) {
-					down += 1;
-					console.log("up:", up);
-					console.log("down:", down);
-					if (down == up) {
-						terminal.value = terminal.value.replace(/.*$/ ,"> ");
-					}
-					else {
-						terminal.value = terminal.value.replace(/.*$/ ,"> " + commands[commands.length - up + down]);
-					}
-				}
-				console.log("commands:", commands);
-				//terminal.value += "\n> ";
-			}
+            console.log("key:", key);
 
-			else if (key == 13)
-			{
-				event.preventDefault();
-				terminal.value += "\n";
-				up = 0;
-				down = 0;
-				for (let i = 0; i < lines.length; i++)
-				{
-					//console.log(lines[i]);
-				}
-				console.log("message:", message);
-				comm = lines[lines.length-1];
-				//console.log("you entered:", comm);
-				console.log("messages.length:", messages.length);
-				if (messages.length > 0) {
-					comm = comm.substring(messages[messages.length - 1].length - 1);
-				}
-				//console.log("you entered:", comm);
-				comm = comm.replace(/([>:]+ *)/g, "");
-				comm = comm.replace(/^[ ]*/g, "");
+            if (key == 8) {
+                console.log(lines[lines.length - 1].length);
+                if (lines[lines.length - 1].length <= 2) {
+                    console.log("backspace detected");
+                    event.preventDefault();
+                }
+            }
 
-				console.log("you entered:", comm);
-				if (comm == "clear") {
-					event.preventDefault();
-					terminal.value = "> ";
-					commands[commNum] = comm;
-					commNum += 1;
-				}
+            else if (key == 46) {
+                console.log("delete detected");
+                //terminal.value += "\n> ";
+            }
 
-				else if (comm == "") {
-					event.preventDefault();
-					terminal.value += "\n> ";
-				}
+            else if (key == 9) {
+                event.preventDefault();
+                terminal.value += "TAB detected";
+                terminal.value += "\n> ";
+                console.log("TAB detected");
+                //socket.send("TAB");
+                //terminal.value += "\n> ";
+            }
 
-				else {
-					socket.send(comm);
-					commands[commNum] = comm;
-					commNum += 1;
-				}
 
-				terminal.scrollTop = terminal.scrollHeight;
-			}
+            else if (key == 38) {
+                console.log("up arrow detected");
+                event.preventDefault();
+                if ((up - down) < commands.length && down <= up) {
+                    up += 1;
+                    console.log("up:", up);
+                    console.log("down:", down);
+                    console.log("commands.length:", commands.length);
+                    terminal.value = terminal.value.replace(/.*$/ ,"> " + commands[commands.length - up + down]);
+                }
+                console.log("commands:", commands);
+                //terminal.value += "\n> ";
+            }
 
-		}
-	}
+            else if (key == 40) {
+                console.log("down arrow detected");
+                event.preventDefault();
+                if (down < up && (up - down) <= commands.length) {
+                    down += 1;
+                    console.log("up:", up);
+                    console.log("down:", down);
+                    if (down == up) {
+                        terminal.value = terminal.value.replace(/.*$/ ,"> ");
+                    }
+                    else {
+                        terminal.value = terminal.value.replace(/.*$/ ,"> " + commands[commands.length - up + down]);
+                    }
+                }
+                console.log("commands:", commands);
+                //terminal.value += "\n> ";
+            }
+
+            else if (key == 13)
+            {
+                event.preventDefault();
+                terminal.value += "\n";
+                up = 0;
+                down = 0;
+                for (let i = 0; i < lines.length; i++)
+                {
+                    //console.log(lines[i]);
+                }
+                console.log("message:", message);
+                comm = lines[lines.length-1];
+                //console.log("you entered:", comm);
+                console.log("messages.length:", messages.length);
+                if (messages.length > 0) {
+                    comm = comm.substring(messages[messages.length - 1].length - 1);
+                }
+                //console.log("you entered:", comm);
+                comm = comm.replace(/([>:]+ *)/g, "");
+                comm = comm.replace(/^[ ]*/g, "");
+
+                console.log("you entered:", comm);
+                if (comm == "clear") {
+                    event.preventDefault();
+                    terminal.value = "> ";
+                    commands[commNum] = comm;
+                    commNum += 1;
+                }
+
+                else if (comm == "") {
+                    event.preventDefault();
+                    terminal.value += "\n> ";
+                }
+
+                else {
+                    socket.send(comm);
+                    commands[commNum] = comm;
+                    commNum += 1;
+                }
+
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+
+        }
+    }
 });
