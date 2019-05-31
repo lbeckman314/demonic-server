@@ -34,19 +34,19 @@ document.addEventListener('DOMContentLoaded', function () {
     terminal.spellcheck = false;
     console.log("terminal:", terminal);
     console.log("Connecting to server...");
-    terminal.value = "Connecting...\n";
+    terminal.innerHTML = "Connecting...\n";
     // Connection opened
     socket.onopen = function (event) {
         console.log("Success!");
-        //terminal.value += "OK\n";
+        //terminal.innerHTML += "OK\n";
         //command = readline.question(": ");
         console.log("Sending initial message to server.");
-        //terminal.value += "Sending initial message to server.\n";
-        terminal.value = "Press ENTER to blast off!\n\n";
+        //terminal.innerHTML += "Sending initial message to server.\n";
+        terminal.innerHTML = "Press ENTER to blast off!\n\n";
 
         let userPrompt = MYLIBRARY.helloWorld();
 
-        terminal.value += "> " + userPrompt;
+        terminal.innerHTML += "> " + userPrompt;
 
         //socket.send("devilish");
 
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Listen for messages
         socket.onmessage = function(event) {
             //console.log("MESSAGE:", event.data);
-            terminal.value += event.data;
+            terminal.innerHTML += event.data;
             message = event.data.toString();
             console.log("MESSAGE:", message);
             messages = message.split("\n");
@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if ( key == 76 && ctrl ) {
                 console.log("Ctrl + L Pressed !");
-                terminal.value = "> ";
+                terminal.innerHTML = "> ";
                 event.preventDefault();
                 e.preventDefault();
                 terminal.focus();
@@ -88,15 +88,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 //e.preventDefault();
                 //event.preventDefault();
                 socket.send("SIGINT");
-                terminal.value += "\n";
-                //terminal.value = terminal.value.replace(/.*$/ ,"> ");
+                terminal.innerHTML += "\n";
+                //terminal.innerHTML = terminal.innerHTML.replace(/.*$/ ,"> ");
             }
 
             else if ( key == 85 && ctrl ) {
                 console.log("Ctrl + U Pressed !");
                 e.preventDefault();
                 //event.preventDefault();
-                terminal.value = terminal.value.replace(/.*$/ ,"> ");
+                terminal.innerHTML = terminal.innerHTML.replace(/.*$/ ,"> ");
             }
 
         },false);
@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         document.getElementById('terminal').onkeydown = function (event) {
             let key = event.keyCode;
-            let lines = terminal.value.split("\n");
+            let lines = terminal.innerHTML.split("\n");
 
             console.log("key:", key);
 
@@ -118,16 +118,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
             else if (key == 46) {
                 console.log("delete detected");
-                //terminal.value += "\n> ";
+                //terminal.innerHTML += "\n> ";
             }
 
             else if (key == 9) {
                 event.preventDefault();
-                terminal.value += "TAB detected";
-                terminal.value += "\n> ";
+                terminal.innerHTML += "TAB detected";
+                terminal.innerHTML += "\n> ";
                 console.log("TAB detected");
                 //socket.send("TAB");
-                //terminal.value += "\n> ";
+                //terminal.innerHTML += "\n> ";
             }
 
 
@@ -139,10 +139,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     console.log("up:", up);
                     console.log("down:", down);
                     console.log("commands.length:", commands.length);
-                    terminal.value = terminal.value.replace(/.*$/ ,"> " + commands[commands.length - up + down]);
+                    terminal.innerHTML = terminal.innerHTML.replace(/.*$/ ,"> " + commands[commands.length - up + down]);
                 }
                 console.log("commands:", commands);
-                //terminal.value += "\n> ";
+                //terminal.innerHTML += "\n> ";
             }
 
             else if (key == 40) {
@@ -153,20 +153,20 @@ document.addEventListener('DOMContentLoaded', function () {
                     console.log("up:", up);
                     console.log("down:", down);
                     if (down == up) {
-                        terminal.value = terminal.value.replace(/.*$/ ,"> ");
+                        terminal.innerHTML = terminal.innerHTML.replace(/.*$/ ,"> ");
                     }
                     else {
-                        terminal.value = terminal.value.replace(/.*$/ ,"> " + commands[commands.length - up + down]);
+                        terminal.innerHTML = terminal.innerHTML.replace(/.*$/ ,"> " + commands[commands.length - up + down]);
                     }
                 }
                 console.log("commands:", commands);
-                //terminal.value += "\n> ";
+                //terminal.innerHTML += "\n> ";
             }
 
             else if (key == 13)
             {
                 event.preventDefault();
-                terminal.value += "\n";
+                terminal.innerHTML += "\n";
                 up = 0;
                 down = 0;
                 for (let i = 0; i < lines.length; i++)
@@ -187,14 +187,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.log("you entered:", comm);
                 if (comm == "clear") {
                     event.preventDefault();
-                    terminal.value = "> ";
+                    terminal.innerHTML = "> ";
                     commands[commNum] = comm;
                     commNum += 1;
                 }
 
                 else if (comm == "") {
                     event.preventDefault();
-                    terminal.value += "\n> ";
+                    terminal.innerHTML += "\n> ";
                 }
 
                 else {

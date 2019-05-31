@@ -146,7 +146,8 @@ wss.on('connection', function connection(ws) {
         ["prime", "./prime"],
         function() {
             if (messages[1] <= 1000000) {
-                child = spawn('programs/prime.out', [`${messages[1]}`], options);
+                //child = spawn('programs/prime.out', [`${messages[1]}`], options);
+                child = spawn('voy', ['search', 'portland'], options);
             }
 
             else {
@@ -182,6 +183,12 @@ wss.on('connection', function connection(ws) {
         ["wyeast"],
         function() {
             child = spawn('./buildworld && ./wyeast',  options_shell);
+        });
+
+    var voy = new Program(
+        ["voy"],
+        function() {
+            child = spawn('voy',  [`${messages[1]}`, `${messages[2]}`], options);
         });
 
     ws.on('message', function incoming(message) {
