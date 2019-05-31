@@ -187,7 +187,15 @@ wss.on('connection', function connection(ws) {
     var voy = new Program(
         ["voy"],
         function() {
-            child = spawn('voy',  [`${messages[1]}`, `${messages[2]}`], options);
+            if (messages[2]) {
+                child = spawn('voy',  [`${messages[1]}`, `${messages[2]}`], options);
+            }
+            else if (messages[1]) {
+                child = spawn('voy',  [`${messages[1]}`], options);
+            }
+            else {
+                child = spawn('voy', options);
+            }
         });
 
     ws.on('message', function incoming(message) {
