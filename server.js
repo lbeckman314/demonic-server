@@ -146,8 +146,7 @@ wss.on('connection', function connection(ws) {
         ["prime", "./prime"],
         function() {
             if (messages[1] <= 1000000) {
-                //child = spawn('programs/prime.out', [`${messages[1]}`], options);
-                child = spawn('voy', ['search', 'portland'], options);
+                child = spawn('programs/prime.out', [`${messages[1]}`], options);
             }
 
             else {
