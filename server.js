@@ -5,18 +5,6 @@ const server = require('./config.js');
 const AU = require('ansi_up');
 const ansi_up = new AU.default;
 
-(function() {
-    var childProcess = require("child_process");
-    var oldSpawn = childProcess.spawn;
-    function mySpawn() {
-        console.log('spawn called');
-        console.log(arguments);
-        var result = oldSpawn.apply(this, arguments);
-        return result;
-    }
-    childProcess.spawn = mySpawn;
-})();
-
 
 function noop() {}
 
@@ -66,6 +54,7 @@ wss.on('connection', function connection(ws) {
     child.stdout.setEncoding('utf-8');
 
     files = ["m1", "m2"];
+    userPrompt = "> ";
 
     const programs = [];
 
@@ -234,6 +223,9 @@ wss.on('connection', function connection(ws) {
                 ws.send(song , function ack(error) {
                     console.error("ERROR:", error);
                 });
+                ws.send(userPrompt, function ack(error) {
+                    console.error("ERROR:", error);
+                });
 
             }
 
@@ -254,11 +246,13 @@ wss.on('connection', function connection(ws) {
                             console.log("getMessage:", programs[i].getMessage());
                             if (programs[i].getError()) {
                                 ws.send(programs[i].getError());
+                                ws.send(userPrompt);
                                 first = true;
                                 programs[i].setError(null);
                             }
                             if (programs[i].getMessage()) {
                                 ws.send(programs[i].getMessage());
+                                ws.send(userPrompt);
                                 first = true;
                                 programs[i].setMessage(null);
                             }
@@ -272,6 +266,9 @@ wss.on('connection', function connection(ws) {
                     first = true;
                     console.log("Invalid program.");
                     ws.send("Invalid program.\n", function ack(error) {
+                        console.error("ERROR:", error);
+                    });
+                    ws.send(userPrompt, function ack(error) {
                         console.error("ERROR:", error);
                     });
 
@@ -300,6 +297,9 @@ wss.on('connection', function connection(ws) {
                 console.log(`child process exited with code ${code}`);
                 first = true;
                 child.kill("SIGINT");
+                ws.send(userPrompt, function ack(error) {
+                    console.error("ERROR:", error);
+                });
             });
 
         }
