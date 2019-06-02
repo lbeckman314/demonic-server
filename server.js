@@ -5,6 +5,18 @@ const server = require('./config.js');
 const AU = require('ansi_up');
 const ansi_up = new AU.default;
 
+(function() {
+    var childProcess = require("child_process");
+    var oldSpawn = childProcess.spawn;
+    function mySpawn() {
+        console.log('spawn called');
+        console.log(arguments);
+        var result = oldSpawn.apply(this, arguments);
+        return result;
+    }
+    childProcess.spawn = mySpawn;
+})();
+
 
 function noop() {}
 
@@ -186,15 +198,12 @@ wss.on('connection', function connection(ws) {
     var voy = new Program(
         ["voy"],
         function() {
-            if (messages[2]) {
-                child = spawn('voy',  [`${messages[1]}`, `${messages[2]}`], options);
+            let args = [];
+            for (let i = 1; i < messages.length; i++) {
+                args.push(messages[i]);
             }
-            else if (messages[1]) {
-                child = spawn('voy',  [`${messages[1]}`], options);
-            }
-            else {
-                child = spawn('voy', options);
-            }
+            console.log(args);
+            child = spawn('voy', args, options);
         });
 
     ws.on('message', function incoming(message) {
