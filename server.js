@@ -2,10 +2,6 @@ const WebSocket = require('ws');
 const fs = require('fs');
 const server = require('./config.js');
 
-const AU = require('ansi_up');
-const ansi_up = new AU.default;
-
-
 function noop() {}
 
 function heartbeat() {
@@ -55,6 +51,7 @@ wss.on('connection', function connection(ws) {
 
     files = ["m1", "m2"];
     userPrompt = "> ";
+    let mode = "web";
 
     const programs = [];
 
@@ -277,10 +274,8 @@ wss.on('connection', function connection(ws) {
             }
 
             child.stdout.on('data', (data) => {
-                let sendData = ansi_up.ansi_to_html(data)
-
                 console.log(`stdout: ${data}`);
-                ws.send(sendData, function ack(error) {
+                ws.send(data, function ack(error) {
                     console.error("ERROR:", error);
                 });
             });
