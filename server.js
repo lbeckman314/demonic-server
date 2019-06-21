@@ -1,7 +1,11 @@
-const WebSocket = require('ws');
 const fs = require('fs');
 const server = require('./config.js');
+const WebSocket = require('ws');
+const wss = new WebSocket.Server({ server });
+const programs = require('./programs.js');
+const BSON = require('bson');
 
+// heartbeat interval (attempts to reconnect if connection is broken)
 function noop() {}
 
 function heartbeat() {
@@ -15,27 +19,15 @@ const interval = setInterval(function ping() {
         ws.isAlive = false;
         ws.ping(noop);
     });
-}, 30000);
+}, 3000);
 
-
-const wss = new WebSocket.Server({ server });
+// reference to spawned child process.
+// actions for child's stdout, stdin, stderr, close
+// are handled below.
+let child = programs[0].child;
 
 console.log("Waiting for clients...");
-
-const { spawn } = require('child_process');
-const options = {
-    detached: true,
-    stdio: 'pipe'
-};
-
-const options_shell = {
-    detached: true,
-    stdio: 'pipe',
-    shell: true,
-    cwd: 'programs/wyeast'
-};
-
-
+server.listen(process.argv[2] || 8181);
 
 wss.on('connection', function connection(ws) {
     console.log("Client connected!");
@@ -44,162 +36,63 @@ wss.on('connection', function connection(ws) {
     ws.isAlive = true;
     ws.on('pong', heartbeat);
 
-    let child = spawn('ls', options);
-    child.unref();
-    child.stdin.setEncoding('utf-8');
-    child.stdout.setEncoding('utf-8');
-
     files = ["m1", "m2"];
     userPrompt = "> ";
-    let mode = "web";
 
-    const programs = [];
+    ws.on('message', async function incoming(message) {
+        let command = '';
+        let code = '';
+        let language = '';
+        let mode = '';
 
-    class Program {
-        constructor(name, command) {
-            this.name = name;
-            this.command = command;
-            this.error = null;
-            this.message = null;
-            programs.push(this);
-        }
-        echo(name, command) {
-            console.log(`My name is ${this.name} and my command is ${this.command}.`);
-        }
-        run(command) {
-            command();
-        }
-        getError() {
-            return this.error;
-        }
-        setError(message) {
-            this.error = message;
-        }
+        try {
+            console.log('message:', message);
+            message = BSON.deserialize(message);
 
-        getMessage() {
-            return this.message;
-        }
-        setMessage(message) {
-            this.message = message;
-        }
-    }
-
-    var palindrome = new Program(
-        ["palindrome", "./palindrome"],
-        function() {
-            child = spawn('programs/palindrome.out', options);
-        });
-
-    var scheme = new Program(
-        ["scheme"],
-        function() {
-            child = spawn('scheme48', options);
-        });
-
-    var haskell = new Program(
-        ["haskell"],
-        function() {
-            child = spawn('ghci', options);
-        });
-
-    var cat = new Program(
-        ["cat"],
-        function() {
-            child = spawn('cat', [`./files/${messages[1]}`], options);
-        });
-
-    var ls = new Program(
-        ["ls"],
-        function() {
-            let list = "";
-            for (let i = 0; i < programs.length; i++) {
-                list += programs[i].name[0] + "\n";
-            }
-            for (let i = 0; i < files.length; i++) {
-                list += files[i] + "\n";
-            }
-            this.setMessage(list);
-
-        });
-
-    var matriz = new Program(
-        ["matriz", "./matriz"],
-        function() {
-            /*
-        for (i = 0; i < messages.length; i++) {
-            console.log(`!!: ${messages[i]}`);
-        }
-        */
-            if (messages[3]) {
-                child = spawn('programs/matriz.sh', [ `${messages[1]}`, `./files/${messages[2]}`, `./files/${messages[3]}`], options);
-            }
-            else {
-                console.log(`!!: ${messages[0]} ${messages[1]} ${messages[2]}`);
-                child = spawn('programs/matriz.sh', [ `${messages[1]}`, `./files/${messages[2]}`], options);
-            }
-        });
-
-    var prime = new Program(
-        ["prime", "./prime"],
-        function() {
-            if (messages[1] <= 1000000) {
-                child = spawn('programs/prime.out', [`${messages[1]}`], options);
+            if (message.command) {
+                command = message.command;
             }
 
-            else {
-                this.setError("Prime number must be less than or equal to 1000000.\n");
+            if (message.code) {
+                code = message.code;
+                command = message.language;
+                mode = message.mode;
             }
-        });
+        } catch(err) {
+            command = message;
+        }
 
-    var withfeathers = new Program(
-        ["withfeathers", "python withfeathers"],
-        function() {
-            child = spawn('python3',  ['programs/withfeathers/main.py', `${messages[1]}`], options);
-        });
+        //console.log('command:', command);
+        console.log('COMMAND:', command);
 
-    var devilish = new Program(
-        ["devilish", "./devilish"],
-        function() {
-            child = spawn('firejail', ['--quiet', '--net=none', '--hostname=demonic', '--rlimit-nproc=100', '--rlimit-as=50000000', '--nice=10', '--private=/home/demo', '--private-tmp', '--chroot=/var/www/demo/files/fire', '/usr/local/bin/devilish.out'], options);
-        });
+        if (mode == 'code') {
+            let language = message.language;
+            let code = message.code;
+                file = `/tmp/tmp.${Math.random()}`;
 
-    var zigzag_server = new Program(
-        ["zigzag-server"],
-        function() {
-            child = spawn('python3',  ['-u', 'programs/zigzag/zigzag-server.py'], options);
-        });
-
-    var zigzag_client = new Program(
-        ["zigzag-client"],
-        function() {
-            child = spawn('programs/zigzag/zigzag-client.out', [`127.0.1.1`, `${messages[1]}`], options);
-        });
-
-    var wyeast = new Program(
-        ["wyeast"],
-        function() {
-            child = spawn('./buildworld && ./wyeast',  options_shell);
-        });
-
-    var voy = new Program(
-        ["voy"],
-        function() {
-            let args = [];
-            for (let i = 1; i < messages.length; i++) {
-                args.push(messages[i]);
+            switch (language) {
+                case 'python':
+                    write(file, code);
+                    command = `python3 ${file}`;
+                    break;
+                case 'javascript':
+                    write(file, code);
+                    command = `node ${file}`;
+                    break;
+                case 'clike':
+                    write(file, code, '.c');
+                    command = `gcc -o ${file} ${file}.c && ${file}`;
+                    break;
             }
-            console.log(args);
-            child = spawn('voy', args, options);
-        });
+        }
 
-    ws.on('message', function incoming(message) {
-        //console.log('received: %s', message);
-        if (message == "ping") {
+
+        if (command == "ping") {
             ws.send("pong");
             return;
         }
 
-        else if (message == "close") {
+        else if (command == "close") {
             ws.close();
             return;
         }
@@ -207,11 +100,9 @@ wss.on('connection', function connection(ws) {
         if (first == true) {
             first = false;
 
-            console.log(message);
-            if (message == ":(){ :|:& };:" || message == "sudo rm -rf /*") {
+            if (message == ":(){ :|:& };:" || command == "sudo rm -rf /*") {
 
                 first = true;
-
                 let song = "Daisy, Daisy,\n" +
                     "Give me your answer, do!\n" +
                     "I'm half crazy,\n" +
@@ -223,36 +114,46 @@ wss.on('connection', function connection(ws) {
                 ws.send(userPrompt, function ack(error) {
                     console.error("ERROR:", error);
                 });
-
             }
 
             else {
-
-                messages = message.split(" ");
-                for (i = 0; i < messages.length; i++) {
-                    //console.log(messages[i]);
-                }
-
+                console.log('command:', command);
+                commands = command.split(" ");
                 let found = false;
+
+                // for all programs
                 for (i = 0; i < programs.length; i++) {
+                    // for all names and aliases of each program
                     for (n = 0; n < programs[i].name.length; n++) {
-                        if (messages[0] === programs[i].name[n]) {
-                            console.log("calling:", programs[i].name[n]);
-                            programs[i].command();
-                            console.log("geterror:", programs[i].getError());
-                            console.log("getMessage:", programs[i].getMessage());
+                        // if the first word of the user command matches a name/alias
+                        if (commands[0] === programs[i].name[n]) {
+                            //console.log('child eval()', eval(programs[i].command)());
+                            //console.log('typeof child eval()', typeof eval(programs[i].command)());
+                            child = eval(programs[i].command)();
+                            //console.log('typeof child:', typeof child);
+                            if (typeof child == 'function') {
+                                child = await child();
+                            }
+                            //console.log('new typeof child:', typeof child);
+                            //console.log('new child:', child);
+
+                            // emulates stderr
                             if (programs[i].getError()) {
                                 ws.send(programs[i].getError());
                                 ws.send(userPrompt);
                                 first = true;
                                 programs[i].setError(null);
                             }
-                            if (programs[i].getMessage()) {
+
+                            // emulates stdout
+                            else if (programs[i].getMessage()) {
                                 ws.send(programs[i].getMessage());
                                 ws.send(userPrompt);
                                 first = true;
                                 programs[i].setMessage(null);
                             }
+
+
                             found = true;
                             break;
                         }
@@ -273,53 +174,83 @@ wss.on('connection', function connection(ws) {
                 }
             }
 
-            child.stdout.on('data', (data) => {
-                console.log(`stdout: ${data}`);
+            //console.log('child:', child);
+            //console.log('typeof child:', typeof child);
+
+            // child is from "psuedo command" like "ls"
+            if (typeof child == 'string') {
+                let data = child;
                 ws.send(data, function ack(error) {
                     console.error("ERROR:", error);
                 });
-            });
 
-            child.stderr.on('data', (data) => {
-                console.log(`stdout: ${data}`);
-                ws.send(data.toString(), function ack(error) {
-                    console.error("ERROR:", error);
-                });
-            });
-
-
-            child.on('close', (code) => {
-                console.log(`child process exited with code ${code}`);
                 first = true;
-                child.kill("SIGINT");
                 ws.send(userPrompt, function ack(error) {
                     console.error("ERROR:", error);
                 });
-            });
+            }
+
+            // child is spawned process
+            else {
+                child.stdout.on('data', (data) => {
+                    console.log(`stdout: ${data}`);
+                    ws.send(data, function ack(error) {
+                        console.error("ERROR:", error);
+                    });
+                });
+
+                child.stderr.on('data', (data) => {
+                    console.log(`stdout: ${data}`);
+                    ws.send(data.toString(), function ack(error) {
+                        console.error("ERROR:", error);
+                    });
+                });
+
+                child.on('close', (code) => {
+                    console.log(`child process exited with code ${code}`);
+                    first = true;
+                    child.kill("SIGINT");
+                    ws.send(userPrompt, function ack(error) {
+                        console.error("ERROR:", error);
+                    });
+                });
+            }
 
         }
 
         else {
-            if (message == "SIGINT") {
+            // signals
+            if (command == "SIGINT") {
                 ws.send("SIGINT received.\n", function ack(error) {
                     console.error("ERROR:", error);
                 });
                 child.kill("SIGINT");
                 first = true;
             }
-            if (message == "SIGTSTP") {
+            if (command == "SIGTSTP") {
                 ws.send("SIGTSTP received.\n", function ack(error) {
                     console.error("ERROR:", error);
                 });
                 child.kill("SIGTSTP");
                 first = true;
             }
+
+            // stdin
             else {
-                console.log("writing to child:", message);
-                child.stdin.write(message + "\n");
+                console.log("writing to child:", command);
+                child.stdin.write(command + "\n");
             }
         }
     });
 });
 
-server.listen(process.argv[2] || 8181);
+
+function write(file, code, ext = '') {
+    let filename = file + ext;
+    fs.writeFile(filename, code, err => {
+        if(err) {
+            return console.log(err);
+        }
+    });
+    console.log(`wrote ${code} to ${filename}`);
+}

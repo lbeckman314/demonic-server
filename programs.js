@@ -1,23 +1,27 @@
-const { spawn } = require('child_process');
-const options = {
-    detached: true,
-    stdio: 'pipe'
-};
-
-
+const { spawn, exec } = require('child_process');
 const programs = [];
 
 class Program {
-
-let child = spawn('ls', options);
-child.unref();
-child.stdin.setEncoding('utf-8');
-child.stdout.setEncoding('utf-8');
     constructor(name, command) {
         this.name = name;
         this.command = command;
         this.error = null;
         this.message = null;
+
+        this.child = spawn('ls', this.options);
+
+        this.options = {
+            detached: true,
+            stdio: 'pipe',
+        };
+
+        this.options_shell = {
+            detached: true,
+            stdio: 'pipe',
+            shell: true,
+            cwd: 'programs/wyeast',
+        };
+
         programs.push(this);
     }
     echo(name, command) {
@@ -32,40 +36,40 @@ child.stdout.setEncoding('utf-8');
     setError(message) {
         this.error = message;
     }
-
     getMessage() {
         return this.message;
     }
     setMessage(message) {
         this.message = message;
     }
+
 }
 
-var palindrome = new Program(
+let palindrome = new Program(
     ["palindrome", "./palindrome"],
     function() {
-        child = spawn('programs/palindrome.out', options);
+        return spawn('programs/palindrome.out', this.options);
     });
 
-var scheme = new Program(
+let scheme = new Program(
     ["scheme"],
     function() {
-        child = spawn('scheme48', options);
+        return spawn('scheme48', this.options);
     });
 
-var haskell = new Program(
+let haskell = new Program(
     ["haskell"],
     function() {
-        child = spawn('ghci', options);
+        return spawn('ghci', this.options);
     });
 
-var cat = new Program(
+let cat = new Program(
     ["cat"],
     function() {
-        child = spawn('cat', [`./files/${messages[1]}`], options);
+        return spawn('cat', [`./files/${commands[1]}`], this.options);
     });
 
-var ls = new Program(
+let ls = new Program(
     ["ls"],
     function() {
         let list = "";
@@ -75,32 +79,34 @@ var ls = new Program(
         for (let i = 0; i < files.length; i++) {
             list += files[i] + "\n";
         }
-        this.setMessage(list);
-
+        console.log('setting message to:', list);
+        return list;
+        //return this.getMessage();
+        //return spawn('ls', this.options);
     });
 
-var matriz = new Program(
+let matriz = new Program(
     ["matriz", "./matriz"],
     function() {
         /*
-            for (i = 0; i < messages.length; i++) {
-                console.log(`!!: ${messages[i]}`);
-            }
-            */
-        if (messages[3]) {
-            child = spawn('programs/matriz.sh', [ `${messages[1]}`, `./files/${messages[2]}`, `./files/${messages[3]}`], options);
+        for (i = 0; i < commands.length; i++) {
+            console.log(`!!: ${commands[i]}`);
+        }
+        */
+        if (commands[3]) {
+            return spawn('programs/matriz.sh', [ `${commands[1]}`, `./files/${commands[2]}`, `./files/${commands[3]}`], this.options);
         }
         else {
-            console.log(`!!: ${messages[0]} ${messages[1]} ${messages[2]}`);
-            child = spawn('programs/matriz.sh', [ `${messages[1]}`, `./files/${messages[2]}`], options);
+            console.log(`!!: ${commands[0]} ${commands[1]} ${commands[2]}`);
+            return spawn('programs/matriz.sh', [ `${commands[1]}`, `./files/${commands[2]}`], this.options);
         }
     });
 
-var prime = new Program(
+let prime = new Program(
     ["prime", "./prime"],
     function() {
-        if (messages[1] <= 1000000) {
-            child = spawn('programs/prime.out', [`${messages[1]}`], options);
+        if (commands[1] <= 1000000) {
+            return spawn('programs/prime.out', [`${commands[1]}`], this.options);
         }
 
         else {
@@ -108,29 +114,102 @@ var prime = new Program(
         }
     });
 
-var withfeathers = new Program(
+let withfeathers = new Program(
     ["withfeathers", "python withfeathers"],
     function() {
-        child = spawn('python3',  ['programs/withfeathers/main.py', `${messages[1]}`], options);
+        return spawn('python3',  ['programs/withfeathers/main.py', `${commands[1]}`], this.options);
     });
 
-var devilish = new Program(
+let devilish = new Program(
     ["devilish", "./devilish"],
     function() {
-        child = spawn('firejail', ['--quiet', '--net=none', '--hostname=demonic', '--rlimit-nproc=100', '--rlimit-as=50000000', '--nice=10', '--private=/home/demo', '--private-tmp', '--chroot=/var/www/demo/files/fire', '/usr/local/bin/devilish.out'], options);
+        return spawn('firejail', ['--quiet', '--net=none', '--hostname=demonic', '--rlimit-nproc=100', '--rlimit-as=50000000', '--nice=10', '--private=/home/demo', '--private-tmp', '--chroot=/let/www/demo/files/fire', '/usr/local/bin/devilish.out'], this.options);
     });
 
-var zigzag_server = new Program(
+let zigzag_server = new Program(
     ["zigzag-server"],
     function() {
-        child = spawn('python3',  ['-u', 'programs/zigzag/zigzag-server.py'], options);
+        return spawn('python3',  ['-u', 'programs/zigzag/zigzag-server.py'], this.options);
     });
 
-var zigzag_client = new Program(
+let zigzag_client = new Program(
     ["zigzag-client"],
     function() {
-        child = spawn('programs/zigzag/zigzag-client.out', [`127.0.1.1`, `${messages[1]}`], options);
+        return spawn('programs/zigzag/zigzag-client.out', [`127.0.1.1`, `${commands[1]}`], this.options);
+    });
+
+let wyeast = new Program(
+    ["wyeast"],
+    function() {
+        return spawn('./buildworld && ./wyeast',  this.options_shell);
+    });
+
+let voy = new Program(
+    ["voy"],
+    function() {
+        let args = [];
+        for (let i = 1; i < commands.length; i++) {
+            args.push(commands[i]);
+        }
+        return spawn('voy', args, this.options);
+    });
+
+let python = new Program(
+    ["python", "python3"],
+    function() {
+        let args = [];
+        for (let i = 1; i < commands.length; i++) {
+            args.push(commands[i]);
+        }
+        console.log('args:', args);
+        return spawn('python', args, this.options);
+    });
+
+let javascript = new Program(
+    ["javascript", "node"],
+    function() {
+        let args = [];
+        for (let i = 1; i < commands.length; i++) {
+            args.push(commands[i]);
+        }
+        console.log('args:', args);
+        return spawn('node', args, this.options);
+    });
+
+let gpp = new Program(
+    ["gpp"],
+    function() {
+        let args = [];
+        for (let i = 1; i < commands.length; i++) {
+            args.push(commands[i]);
+        }
+        console.log('args:', args);
+
+        return spawn(`g++ -o ${args[1]} ${args[1]}.cpp && ${args[1]}`, {
+            shell: true,
+        });
+    });
+
+let gcc = new Program(
+    ["gcc"],
+    function() {
+        let args = [];
+        for (let i = 1; i < commands.length; i++) {
+            args.push(commands[i]);
+        }
+        console.log('args:', args);
+
+        const run = `
+        gcc -o ${args[1]} ${args[1]}.c &&
+        while [ ! -f ${args[1]} ]; do
+            sleep 1
+        done;
+        ${args[1]}
+        `;
+        console.log(run)
+        return spawn(run, {
+            shell: true,
+        });
     });
 
 module.exports = programs;
-module.exports.child = child;
