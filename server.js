@@ -130,15 +130,11 @@ wss.on('connection', function connection(ws) {
                     for (n = 0; n < programs[i].name.length; n++) {
                         // if the first word of the user command matches a name/alias
                         if (commands[0] === programs[i].name[n]) {
-                            //console.log('child eval()', eval(programs[i].command)());
-                            //console.log('typeof child eval()', typeof eval(programs[i].command)());
+                            console.log(`Running ${programs[i].command}`);
                             child = eval(programs[i].command)();
-                            //console.log('typeof child:', typeof child);
                             if (typeof child == 'function') {
                                 child = await child();
                             }
-                            //console.log('new typeof child:', typeof child);
-                            //console.log('new child:', child);
 
                             // emulates stderr
                             if (programs[i].getError()) {
@@ -259,11 +255,11 @@ function write(file, code, ext = '') {
 }
 
 function read(file) {
-    fs.readFile(file, (err, data) => { 
-        if (err) throw err; 
+    fs.readFile(file, (err, data) => {
+        if (err) throw err;
         if(err) {
             return console.log(err);
         }
         return data;
-    }) 
+    })
 }
