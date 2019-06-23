@@ -24,12 +24,12 @@ const interval = setInterval(function ping() {
 // reference to spawned child process.
 // actions for child's stdout, stdin, stderr, close
 // are handled below.
-let child = programs[0].child;
 
 console.log("Waiting for clients...");
 server.listen(process.argv[2] || 8181);
 
 wss.on('connection', function connection(ws) {
+    let child = programs[0].child;
     console.log("Client connected!");
     let first = true;
 
@@ -46,7 +46,7 @@ wss.on('connection', function connection(ws) {
         let mode = '';
 
         try {
-            console.log('message:', message);
+            //console.log('message:', message);
             message = BSON.deserialize(message);
 
             if (message.command) {
@@ -63,12 +63,12 @@ wss.on('connection', function connection(ws) {
         }
 
         //console.log('command:', command);
-        console.log('COMMAND:', command);
+        //console.log('COMMAND:', command);
 
         if (mode == 'code') {
             let language = message.language;
             let code = message.code;
-                file = `/tmp/tmp.${Math.random()}`;
+            file = `/tmp/tmp.${Math.random()}`;
 
             switch (language) {
                 case 'python':
@@ -83,9 +83,12 @@ wss.on('connection', function connection(ws) {
                     write(file, code, '.c');
                     command = `gcc -o ${file} ${file}.c && ${file}`;
                     break;
+                case 'markdown':
+                    write(file, code);
+                    command = `markdown ${file}`;
+                    break;
             }
         }
-
 
         if (command == "ping") {
             ws.send("pong");
@@ -253,4 +256,14 @@ function write(file, code, ext = '') {
         }
     });
     console.log(`wrote ${code} to ${filename}`);
+}
+
+function read(file) {
+    fs.readFile(file, (err, data) => { 
+        if (err) throw err; 
+        if(err) {
+            return console.log(err);
+        }
+        return data;
+    }) 
 }

@@ -212,4 +212,40 @@ let gcc = new Program(
         });
     });
 
+let telnet = new Program(
+    ["telnet"],
+    function() {
+        let args = [];
+        for (let i = 1; i < commands.length; i++) {
+            args.push(commands[i]);
+        }
+        return spawn('telnet', args, this.options);
+    });
+
+let vim = new Program(
+    ["vim"],
+    function() {
+        let args = [];
+        for (let i = 1; i < commands.length; i++) {
+            args.push(commands[i]);
+        }
+        return spawn('vim', args, this.options);
+    });
+
+let markdown = new Program(
+    ["markdown"],
+    function() {
+        console.log('commands:', commands);
+        srcfile = commands[1];
+        outfile = `demo.${Math.random()}.html`;
+        const run = `
+            pandoc -f markdown -t html -s ${srcfile} -o ${outfile} -H header.html
+            echo http://localhost:8000/${outfile}
+        `;
+        console.log(run)
+        return spawn(run, {
+            shell: true,
+        });
+    });
+
 module.exports = programs;
