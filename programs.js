@@ -240,7 +240,8 @@ let markdown = new Program(
         outfile = `demo.${Math.random()}.html`;
         const run = `
             pandoc -f markdown -t html -s ${srcfile} -o /tmp/${outfile} -H header.html
-            mv /tmp/${outfile} /var/www/demo/demo-web/tmp
+            mkdir -p /var/www/demo/demo-docs/tmp
+            mv /tmp/${outfile} /var/www/demo/demo-docs/tmp
             echo https://demo.liambeckman.com/tmp/${outfile}
         `;
         console.log(run)
