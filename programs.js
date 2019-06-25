@@ -162,7 +162,7 @@ let python = new Program(
             args.push(commands[i]);
         }
         console.log('args:', args);
-        return spawn('python', args, this.options);
+        return spawn('python3', args, this.options);
     });
 
 let javascript = new Program(
@@ -205,6 +205,43 @@ let gcc = new Program(
             sleep 1
         done;
         ${args[1]}
+        `;
+        console.log(run)
+        return spawn(run, {
+            shell: true,
+        });
+    });
+
+let telnet = new Program(
+    ["telnet"],
+    function() {
+        let args = [];
+        for (let i = 1; i < commands.length; i++) {
+            args.push(commands[i]);
+        }
+        return spawn('telnet', args, this.options);
+    });
+
+let vim = new Program(
+    ["vim"],
+    function() {
+        let args = [];
+        for (let i = 1; i < commands.length; i++) {
+            args.push(commands[i]);
+        }
+        return spawn('vim', args, this.options);
+    });
+
+let markdown = new Program(
+    ["markdown"],
+    function() {
+        console.log('commands:', commands);
+        srcfile = commands[1];
+        outfile = `demo.${Math.random()}.html`;
+        const run = `
+            pandoc -f markdown -t html -s ${srcfile} -o /tmp/${outfile} -H header.html
+            mv /tmp/${outfile} /var/www/demo/demo-web/tmp
+            echo https://demo.liambeckman.com/tmp/${outfile}
         `;
         console.log(run)
         return spawn(run, {
