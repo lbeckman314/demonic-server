@@ -46,7 +46,7 @@ wss.on('connection', function connection(ws) {
         let mode = '';
 
         try {
-            //console.log('message:', message);
+            console.log('message:', message);
             message = JSON.parse(message);
 
             if (message.command) {
