@@ -24,12 +24,12 @@ const interval = setInterval(function ping() {
 // reference to spawned child process.
 // actions for child's stdout, stdin, stderr, close
 // are handled below.
-let child = programs[0].child;
 
 console.log("Waiting for clients...");
 server.listen(process.argv[2] || 8181);
 
 wss.on('connection', function connection(ws) {
+    let child = programs[0].child;
     console.log("Client connected!");
     let first = true;
 
@@ -46,8 +46,8 @@ wss.on('connection', function connection(ws) {
         let mode = '';
 
         try {
-            console.log('message:', message);
-            message = BSON.deserialize(message);
+            //console.log('message:', message);
+            message = JSON.parse(message);
 
             if (message.command) {
                 command = message.command;
@@ -63,12 +63,12 @@ wss.on('connection', function connection(ws) {
         }
 
         //console.log('command:', command);
-        console.log('COMMAND:', command);
+        //console.log('COMMAND:', command);
 
         if (mode == 'code') {
             let language = message.language;
             let code = message.code;
-                file = `/tmp/tmp.${Math.random()}`;
+            file = `/tmp/tmp.${Math.random()}`;
 
             switch (language) {
                 case 'python':
@@ -83,9 +83,12 @@ wss.on('connection', function connection(ws) {
                     write(file, code, '.c');
                     command = `gcc -o ${file} ${file}.c && ${file}`;
                     break;
+                case 'markdown':
+                    write(file, code);
+                    command = `markdown ${file}`;
+                    break;
             }
         }
-
 
         if (command == "ping") {
             ws.send("pong");
@@ -127,15 +130,11 @@ wss.on('connection', function connection(ws) {
                     for (n = 0; n < programs[i].name.length; n++) {
                         // if the first word of the user command matches a name/alias
                         if (commands[0] === programs[i].name[n]) {
-                            //console.log('child eval()', eval(programs[i].command)());
-                            //console.log('typeof child eval()', typeof eval(programs[i].command)());
+                            console.log(`Running ${programs[i].command}`);
                             child = eval(programs[i].command)();
-                            //console.log('typeof child:', typeof child);
                             if (typeof child == 'function') {
                                 child = await child();
                             }
-                            //console.log('new typeof child:', typeof child);
-                            //console.log('new child:', child);
 
                             // emulates stderr
                             if (programs[i].getError()) {
@@ -254,3 +253,14 @@ function write(file, code, ext = '') {
     });
     console.log(`wrote ${code} to ${filename}`);
 }
+
+function read(file) {
+    fs.readFile(file, (err, data) => {
+        if (err) throw err;
+        if(err) {
+            return console.log(err);
+        }
+        return data;
+    })
+}
+
