@@ -1,4 +1,17 @@
 const { spawn, exec } = require('child_process');
+
+const sandbox_common = [
+    '--quiet',
+    '--net=none',
+    '--hostname=demonic',
+    '--rlimit-nproc=100',
+    '--rlimit-as=50000000',
+    '--nice=10',
+    '--private-home=/srv/chroot/demo/bin',
+    '--private-tmp',
+    '--chroot=/srv/chroot',
+];
+
 const programs = [];
 
 class Program {
@@ -49,18 +62,6 @@ let palindrome = new Program(
     ["palindrome", "./palindrome"],
     function() {
         return spawn('programs/palindrome.out', this.options);
-    });
-
-let scheme = new Program(
-    ["scheme"],
-    function() {
-        return spawn('scheme48', this.options);
-    });
-
-let haskell = new Program(
-    ["haskell"],
-    function() {
-        return spawn('ghci', this.options);
     });
 
 let cat = new Program(
@@ -123,7 +124,8 @@ let withfeathers = new Program(
 let devilish = new Program(
     ["devilish", "./devilish"],
     function() {
-        return spawn('firejail', ['--quiet', '--net=none', '--hostname=demonic', '--rlimit-nproc=100', '--rlimit-as=50000000', '--nice=10', '--private=/home/demo', '--private-tmp', '--chroot=/let/www/demo/files/fire', '/usr/local/bin/devilish.out'], this.options);
+        let sandbox = sandbox_common.push('/home/demo/bin/devilish.out');
+        return spawn('firejail', sandbox, this.options);
     });
 
 let zigzag_server = new Program(
@@ -154,6 +156,38 @@ let voy = new Program(
         return spawn('voy', args, this.options);
     });
 
+let markdown = new Program(
+    ["markdown"],
+    function() {
+        console.log('commands:', commands);
+        srcfile = commands[1];
+        outfile = `demo.${Math.random()}.html`;
+        const run = `
+            pandoc -f markdown -t html -s ${srcfile} -o /tmp/${outfile} -H header.html
+            mkdir -p /var/www/demo/demo-docs/tmp
+            mv /tmp/${outfile} /var/www/demo/demo-docs/tmp
+            echo https://demo.liambeckman.com/tmp/${outfile}
+        `;
+        console.log(run)
+        return spawn(run, {
+            shell: true,
+        });
+    });
+
+// sandboxed programming langauges
+
+let scheme = new Program(
+    ["scheme"],
+    function() {
+        return spawn('scheme48', this.options);
+    });
+
+let haskell = new Program(
+    ["haskell"],
+    function() {
+        return spawn('ghci', this.options);
+    });
+
 let python = new Program(
     ["python", "python3"],
     function() {
@@ -162,7 +196,8 @@ let python = new Program(
             args.push(commands[i]);
         }
         console.log('args:', args);
-        return spawn('python3', args, this.options);
+        let sandbox = sandbox_common.push(`python3 ${args}`);
+        return spawn('firejail', sandbox, this.options);
     });
 
 let javascript = new Program(
@@ -212,42 +247,5 @@ let gcc = new Program(
         });
     });
 
-let telnet = new Program(
-    ["telnet"],
-    function() {
-        let args = [];
-        for (let i = 1; i < commands.length; i++) {
-            args.push(commands[i]);
-        }
-        return spawn('telnet', args, this.options);
-    });
-
-let vim = new Program(
-    ["vim"],
-    function() {
-        let args = [];
-        for (let i = 1; i < commands.length; i++) {
-            args.push(commands[i]);
-        }
-        return spawn('vim', args, this.options);
-    });
-
-let markdown = new Program(
-    ["markdown"],
-    function() {
-        console.log('commands:', commands);
-        srcfile = commands[1];
-        outfile = `demo.${Math.random()}.html`;
-        const run = `
-            pandoc -f markdown -t html -s ${srcfile} -o /tmp/${outfile} -H header.html
-            mkdir -p /var/www/demo/demo-docs/tmp
-            mv /tmp/${outfile} /var/www/demo/demo-docs/tmp
-            echo https://demo.liambeckman.com/tmp/${outfile}
-        `;
-        console.log(run)
-        return spawn(run, {
-            shell: true,
-        });
-    });
 
 module.exports = programs;
