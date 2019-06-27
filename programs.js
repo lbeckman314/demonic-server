@@ -1,17 +1,5 @@
 const { spawn, exec } = require('child_process');
 
-const sandbox_common = [
-    '--quiet',
-    '--net=none',
-    '--hostname=demonic',
-    '--rlimit-nproc=100',
-    '--rlimit-as=50000000',
-    '--nice=10',
-    '--private-home=/srv/chroot/demo/bin',
-    '--private-tmp',
-    '--chroot=/srv/chroot',
-];
-
 const programs = [];
 
 class Program {
@@ -35,6 +23,17 @@ class Program {
             cwd: 'programs/wyeast',
         };
 
+        // '--rlimit-nproc=100',
+        // '--rlimit-as=50000000',
+        this.sandbox = [
+            '--quiet',
+            '--net=none',
+            '--hostname=demonic',
+            '--nice=10',
+            '--private-home=/srv/chroot/demo/bin',
+            '--chroot=/srv/chroot',
+        ];
+
         programs.push(this);
     }
     echo(name, command) {
@@ -55,7 +54,12 @@ class Program {
     setMessage(message) {
         this.message = message;
     }
-
+    getSandbox() {
+        return this.sandbox;
+    }
+    setSandbox(sandbox) {
+        this.sandbox = sandbox;
+    }
 }
 
 let palindrome = new Program(
@@ -188,18 +192,6 @@ let haskell = new Program(
         return spawn('ghci', this.options);
     });
 
-let python = new Program(
-    ["python", "python3"],
-    function() {
-        let args = [];
-        for (let i = 1; i < commands.length; i++) {
-            args.push(commands[i]);
-        }
-        console.log('args:', args);
-        let sandbox = sandbox_common.push(`python3 ${args}`);
-        return spawn('firejail', sandbox, this.options);
-    });
-
 let javascript = new Program(
     ["javascript", "node"],
     function() {
@@ -225,6 +217,24 @@ let gpp = new Program(
         });
     });
 
+let python = new Program(
+    ["python", "python3"],
+    function() {
+        let args = [];
+        for (let i = 1; i < commands.length; i++) {
+            args.push(commands[i]);
+        }
+        console.log('args:', args);
+        
+        let run = `${args}`;
+        run = run.replace('/srv/chroot','')
+
+        let sandbox = [...python.getSandbox()];
+        sandbox.push('python3');
+        sandbox.push(run);
+        return spawn('firejail', sandbox, this.options);
+    });
+
 let gcc = new Program(
     ["gcc"],
     function() {
@@ -234,17 +244,29 @@ let gcc = new Program(
         }
         console.log('args:', args);
 
-        const run = `
+        let run = `
         gcc -o ${args[1]} ${args[1]}.c &&
         while [ ! -f ${args[1]} ]; do
-            sleep 1
+            sleep 1;
         done;
         ${args[1]}
         `;
-        console.log(run)
-        return spawn(run, {
-            shell: true,
-        });
+
+        run = run.replace(/\/srv\/chroot/g,'');
+        run = run.replace(/(?:\r\n|\r|\n)/g,'');
+        console.log('run:', run);
+
+        let sandbox = [...gcc.getSandbox()];
+        sandbox.push('sh');
+        sandbox.push('-c');
+        sandbox.push(run);
+        console.log('sandbox:', sandbox);
+        return spawn('firejail', sandbox, this.options);
+
+        //console.log(run)
+        //return spawn(run, {
+        //    shell: true,
+        //});
     });
 
 

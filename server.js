@@ -46,7 +46,7 @@ wss.on('connection', function connection(ws) {
         let mode = '';
 
         try {
-            console.log('message:', message);
+            //console.log('message:', message);
             message = JSON.parse(message);
 
             if (message.command) {
@@ -68,7 +68,7 @@ wss.on('connection', function connection(ws) {
         if (mode == 'code') {
             let language = message.language;
             let code = message.code;
-            file = `/tmp/tmp.${Math.random()}`;
+            file = `/srv/chroot/tmp/tmp.${Math.random()}`;
 
             switch (language) {
                 case 'python':
