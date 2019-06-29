@@ -165,12 +165,15 @@ let markdown = new Program(
     function() {
         console.log('commands:', commands);
         srcfile = commands[1];
-        outfile = `demo.${Math.random()}.html`;
+        outfile = commands[1] + '.html';
         const run = `
-            pandoc -f markdown -t html -s ${srcfile} -o /tmp/${outfile} -H header.html
+            pandoc -f markdown -t html -s ${srcfile} -o ${outfile} -H header.html
             mkdir -p /var/www/demo/demo-docs/tmp
-            mv /tmp/${outfile} /var/www/demo/demo-docs/tmp
-            echo https://demo.liambeckman.com/tmp/${outfile}
+            out=$(basename ${outfile})
+            src=$(basename ${srcfile})
+            mv ${outfile} /var/www/demo/demo-docs/tmp
+            mv ${srcfile} /var/www/demo/demo-docs/tmp/$src.md
+            echo https://demo.liambeckman.com/tmp/$out
         `;
         console.log(run)
         return spawn(run, {
@@ -245,11 +248,11 @@ let gcc = new Program(
         console.log('args:', args);
 
         let run = `
-        gcc -o ${args[1]} ${args[1]}.c &&
-        while [ ! -f ${args[1]} ]; do
-            sleep 1;
-        done;
-        ${args[1]}
+            gcc -o ${args[1]} ${args[1]}.c &&
+            while [ ! -f ${args[1]} ]; do
+                sleep 1;
+            done;
+            ${args[1]}
         `;
 
         run = run.replace(/\/srv\/chroot/g,'');
