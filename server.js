@@ -71,21 +71,39 @@ wss.on('connection', function connection(ws) {
             file = `/srv/chroot/tmp/tmp.${Math.random()}`;
 
             switch (language) {
-                case 'python':
+                // C
+                case 'text/x-csrc':
+                    write(file, code, '.c');
+                    command = `gcc ${file}`;
+                    break;
+                // C++
+                case 'text/x-c++src':
+                    write(file, code, '.cpp');
+                    command = `g++ ${file}`;
+                    break;
+                case 'go':
                     write(file, code);
-                    command = `python3 ${file}`;
+                    command = `go ${file}`;
                     break;
                 case 'javascript':
                     write(file, code);
                     command = `node ${file}`;
                     break;
-                case 'clike':
-                    write(file, code, '.c');
-                    command = `gcc -o ${file} ${file}.c && ${file}`;
-                    break;
                 case 'markdown':
                     write(file, code);
                     command = `markdown ${file}`;
+                    break;
+                case 'python':
+                    write(file, code);
+                    command = `python3 ${file}`;
+                    break;
+                case 'ruby':
+                    write(file, code);
+                    command = `ruby ${file}`;
+                    break;
+                case 'rust':
+                    write(file, code);
+                    command = `rustc ${file}`;
                     break;
             }
         }
