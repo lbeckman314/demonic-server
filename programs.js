@@ -183,105 +183,6 @@ let markdown = new Program(
 
 // sandboxed programming langauges
 
-let scheme = new Program(
-    ["scheme"],
-    function() {
-        return spawn('scheme48', this.options);
-    });
-
-let haskell = new Program(
-    ["haskell"],
-    function() {
-        return spawn('ghci', this.options);
-    });
-
-let go = new Program(
-    ["go", "golang"],
-    function() {
-        let args = [];
-        for (let i = 1; i < commands.length; i++) {
-            args.push(commands[i]);
-        }
-
-        let run = `${args}`;
-        run = run.replace('/srv/chroot','')
-
-        let sandbox = [...go.getSandbox()];
-        sandbox.push('go');
-        sandbox.push('run');
-        sandbox.push(run);
-        return spawn('firejail', sandbox, this.options);
-    });
-
-let rust = new Program(
-    ["rust", "rustc"],
-    function() {
-        let args = [];
-        for (let i = 1; i < commands.length; i++) {
-            args.push(commands[i]);
-        }
-
-        let run = `${args}`;
-        run = run.replace('/srv/chroot','')
-
-        let sandbox = [...rust.getSandbox()];
-        sandbox.push('rustc');
-        sandbox.push(run);
-        return spawn('firejail', sandbox, this.options);
-    });
-
-let ruby = new Program(
-    ["ruby"],
-    function() {
-        let args = [];
-        for (let i = 1; i < commands.length; i++) {
-            args.push(commands[i]);
-        }
-
-        let run = `${args}`;
-        run = run.replace('/srv/chroot','')
-
-        let sandbox = [...ruby.getSandbox()];
-        sandbox.push('ruby');
-        sandbox.push(run);
-        return spawn('firejail', sandbox, this.options);
-    });
-
-let javascript = new Program(
-    ["javascript", "node"],
-    function() {
-        let args = [];
-        for (let i = 1; i < commands.length; i++) {
-            args.push(commands[i]);
-        }
-
-        let run = `${args}`;
-        run = run.replace('/srv/chroot','')
-
-        let sandbox = [...javascript.getSandbox()];
-        sandbox.push('node');
-        sandbox.push(run);
-        return spawn('firejail', sandbox, this.options);
-    });
-
-let python = new Program(
-    ["python", "python3"],
-    function() {
-        let args = [];
-        for (let i = 1; i < commands.length; i++) {
-            args.push(commands[i]);
-        }
-        console.log('args:', args);
-        
-        let run = `${args}`;
-        run = run.replace('/srv/chroot','')
-
-        let sandbox = [...python.getSandbox()];
-        sandbox.push('python3');
-        sandbox.push(run);
-        return spawn('firejail', sandbox, this.options);
-    });
-
 let gcc = new Program(
     ["gcc"],
     function() {
@@ -312,7 +213,7 @@ let gcc = new Program(
     });
 
 let gpp = new Program(
-    ["g++"],
+    ["g++", "gpp"],
     function() {
         let args = [];
         for (let i = 1; i < commands.length; i++) {
@@ -321,7 +222,7 @@ let gpp = new Program(
         console.log('args:', args);
 
         let run = `
-            g++ -o ${args[0]} ${args[0]}.c &&
+            g++ -o ${args[0]} ${args[0]}.cpp &&
             while [ ! -f ${args[0]} ]; do
                 sleep 1;
             done;
@@ -338,5 +239,142 @@ let gpp = new Program(
         return spawn('firejail', sandbox, this.options);
     });
 
+
+let go = new Program(
+    ["go", "golang"],
+    function() {
+        let args = [];
+        for (let i = 1; i < commands.length; i++) {
+            args.push(commands[i]);
+        }
+
+        let run = `${args}`;
+        run = run.replace('/srv/chroot','')
+
+        let sandbox = [...go.getSandbox()];
+        sandbox.push('go');
+        sandbox.push('run');
+        sandbox.push(run + '.go');
+        return spawn('firejail', sandbox, this.options);
+    });
+
+let java = new Program(
+    ["java"],
+    function() {
+        let args = [];
+        for (let i = 1; i < commands.length; i++) {
+            args.push(commands[i]);
+        }
+
+        let run = `
+            javac ${args[0]};
+            cd /tmp;
+            FILE=$(basename -- ${args[0]});
+            FILE="\${FILE%.*}";
+            java $FILE;
+        `;
+
+        run = run.replace(/\/srv\/chroot/g,'');
+        run = run.replace(/(?:\r\n|\r|\n)/g,'');
+
+        let sandbox = [...java.getSandbox()];
+        sandbox.push('sh');
+        sandbox.push('-c');
+        sandbox.push(run);
+        return spawn('firejail', sandbox, this.options);
+    });
+
+let haskell = new Program(
+    ["haskell"],
+    function() {
+        return spawn('ghci', this.options);
+    });
+
+
+let javascript = new Program(
+    ["javascript", "node"],
+    function() {
+        let args = [];
+        for (let i = 1; i < commands.length; i++) {
+            args.push(commands[i]);
+        }
+
+        let run = `${args}`;
+        run = run.replace('/srv/chroot','')
+
+        let sandbox = [...javascript.getSandbox()];
+        sandbox.push('node');
+        sandbox.push(run);
+        return spawn('firejail', sandbox, this.options);
+    });
+
+let python = new Program(
+    ["python", "python3"],
+    function() {
+        let args = [];
+        for (let i = 1; i < commands.length; i++) {
+            args.push(commands[i]);
+        }
+        console.log('args:', args);
+
+        let run = `${args}`;
+        run = run.replace('/srv/chroot','')
+
+        let sandbox = [...python.getSandbox()];
+        sandbox.push('python3');
+        sandbox.push(run);
+        return spawn('firejail', sandbox, this.options);
+    });
+
+
+let ruby = new Program(
+    ["ruby"],
+    function() {
+        let args = [];
+        for (let i = 1; i < commands.length; i++) {
+            args.push(commands[i]);
+        }
+
+        let run = `${args}`;
+        run = run.replace('/srv/chroot','')
+
+        let sandbox = [...ruby.getSandbox()];
+        sandbox.push('ruby');
+        sandbox.push(run);
+        return spawn('firejail', sandbox, this.options);
+    });
+
+let rust = new Program(
+    ["rust", "rustc"],
+    function() {
+        let args = [];
+        for (let i = 1; i < commands.length; i++) {
+            args.push(commands[i]);
+        }
+
+        let run = `
+            rustc -o ${args[0]} ${args[0]}.rs;
+            ${args[0]}
+        `;
+
+        run = run.replace(/\/srv\/chroot/g,'');
+        run = run.replace(/(?:\r\n|\r|\n)/g,'');
+        console.log('run:', run);
+
+        let sandbox = [...rust.getSandbox()];
+        sandbox.push('sh');
+        sandbox.push('-c');
+        sandbox.push(run);
+        console.log('sandbox:', sandbox);
+        return spawn('firejail', sandbox, this.options);
+    });
+
+
+
+let scheme = new Program(
+    ["scheme"],
+    function() {
+        return spawn('scheme48', this.options);
+    });
 
 module.exports = programs;

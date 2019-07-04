@@ -68,7 +68,8 @@ wss.on('connection', function connection(ws) {
         if (mode == 'code') {
             let language = message.language;
             let code = message.code;
-            file = `/srv/chroot/tmp/tmp.${Math.random()}`;
+            let id = Math.floor(Math.random() * 1e6);
+            file = `/srv/chroot/tmp/tmp_${id}`;
 
             switch (language) {
                 // C
@@ -82,8 +83,14 @@ wss.on('connection', function connection(ws) {
                     command = `g++ ${file}`;
                     break;
                 case 'go':
-                    write(file, code);
+                    write(file, code, '.go');
                     command = `go ${file}`;
+                    break;
+                // Java
+                case 'text/x-java':
+                    file = `/srv/chroot/tmp/Hello.java`;
+                    write(file, code);
+                    command = `java ${file}`;
                     break;
                 case 'javascript':
                     write(file, code);
@@ -102,7 +109,7 @@ wss.on('connection', function connection(ws) {
                     command = `ruby ${file}`;
                     break;
                 case 'rust':
-                    write(file, code);
+                    write(file, code, '.rs');
                     command = `rustc ${file}`;
                     break;
             }
@@ -132,6 +139,12 @@ wss.on('connection', function connection(ws) {
                 ws.send(song , function ack(error) {
                     console.error("ERROR:", error);
                 });
+                ws.send(userPrompt, function ack(error) {
+                    console.error("ERROR:", error);
+                });
+            }
+
+            else if (message == 'prompt') {
                 ws.send(userPrompt, function ack(error) {
                     console.error("ERROR:", error);
                 });
