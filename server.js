@@ -1,296 +1,142 @@
+const BSON = require('bson');
+const WebSocket = require('ws');
 const fs = require('fs');
 const server = require('./config.js');
-const WebSocket = require('ws');
+const {Process, processes} = require('./process.js');
+const {spawn, exec} = require('child_process');
+
 const wss = new WebSocket.Server({ server });
-const programs = require('./programs.js');
-const BSON = require('bson');
+const port = process.argv[2] || 8181;
+server.listen(port);
+console.log('Waiting for clients at ws://localhost:' + port);
 
-// heartbeat interval (attempts to reconnect if connection is broken)
-function noop() {}
+wss.on('connection', (ws) => {
+    console.log('Client connected!');
 
-function heartbeat() {
-    this.isAlive = true;
-}
+    // An ongoing process is present.
+    // Incoming data should be sent to it's STDIN.
+    let process = false;
+    let child = {};
+    let program = {};
 
-const interval = setInterval(function ping() {
-    wss.clients.forEach(function each(ws) {
-        if (ws.isAlive === false) return ws.terminate();
+    userPrompt = '> ';
+    buffer = [];
+    let obj = {};
+    let data = '';
 
-        ws.isAlive = false;
-        ws.ping(noop);
-    });
-}, 3000);
+    ws.on('message', (message) => {
+        obj = JSON.parse(message);
+        if (obj.data != null) {
+            data = obj.data;
+        }
+        console.log(obj.lang != null && obj.code != null);
 
-// reference to spawned child process.
-// actions for child's stdout, stdin, stderr, close
-// are handled below.
+        // Language
+        if (obj.lang != null && obj.code != null) {
+            const loading = {'loading': 'true'};
+            ws.send(JSON.stringify(loading));
 
-console.log("Waiting for clients...");
-server.listen(process.argv[2] || 8181);
-
-wss.on('connection', function connection(ws) {
-    let child = programs[0].child;
-    console.log("Client connected!");
-    let first = true;
-
-    ws.isAlive = true;
-    ws.on('pong', heartbeat);
-
-    files = ["m1", "m2"];
-    userPrompt = "> ";
-
-    ws.on('message', async function incoming(message) {
-        let command = '';
-        let code = '';
-        let language = '';
-        let mode = '';
-
-        try {
-            //console.log('message:', message);
-            message = JSON.parse(message);
-
-            if (message.command) {
-                command = message.command;
-            }
-
-            if (message.code) {
-                code = message.code;
-                command = message.language;
-                mode = message.mode;
-            }
-        } catch(err) {
-            command = message;
+            program = findProcess(obj.lang);
+            ws.send(JSON.stringify({draw: false}));
+            child = program.comm(obj.code);
         }
 
-        //console.log('command:', command);
-        //console.log('COMMAND:', command);
-
-        if (mode == 'code') {
-            let language = message.language;
-            let code = message.code;
-            let id = Math.floor(Math.random() * 1e6);
-            file = `/srv/chroot/tmp/tmp_${id}`;
-
-            switch (language) {
-                // C
-                case 'text/x-csrc':
-                    write(file, code, '.c');
-                    command = `gcc ${file}`;
-                    break;
-                // C++
-                case 'text/x-c++src':
-                    write(file, code, '.cpp');
-                    command = `g++ ${file}`;
-                    break;
-                case 'go':
-                    write(file, code, '.go');
-                    command = `go ${file}`;
-                    break;
-                // Java
-                case 'text/x-java':
-                    file = `/srv/chroot/tmp/Hello.java`;
-                    write(file, code);
-                    command = `java ${file}`;
-                    break;
-                case 'javascript':
-                    write(file, code);
-                    command = `node ${file}`;
-                    break;
-                case 'markdown':
-                    write(file, code);
-                    command = `markdown ${file}`;
-                    break;
-                case 'python':
-                    write(file, code);
-                    command = `python3 ${file}`;
-                    break;
-                case 'ruby':
-                    write(file, code);
-                    command = `ruby ${file}`;
-                    break;
-                case 'rust':
-                    write(file, code, '.rs');
-                    command = `rustc ${file}`;
-                    break;
-            }
-        }
-
-        if (command == "ping") {
-            ws.send("pong");
-            return;
-        }
-
-        else if (command == "close") {
-            ws.close();
-            return;
-        }
-
-        if (first == true) {
-            first = false;
-
-            if (message == ":(){ :|:& };:" || command == "sudo rm -rf /*") {
-
-                first = true;
-                let song = "Daisy, Daisy,\n" +
-                    "Give me your answer, do!\n" +
-                    "I'm half crazy,\n" +
-                    "All for the love of you!\n"
-
-                ws.send(song , function ack(error) {
-                    console.error("ERROR:", error);
-                });
-                ws.send(userPrompt, function ack(error) {
-                    console.error("ERROR:", error);
-                });
-            }
-
-            else if (message == 'prompt') {
-                ws.send(userPrompt, function ack(error) {
-                    console.error("ERROR:", error);
-                });
-            }
-
-            else {
-                console.log('command:', command);
-                commands = command.split(" ");
-                let found = false;
-
-                // for all programs
-                for (i = 0; i < programs.length; i++) {
-                    // for all names and aliases of each program
-                    for (n = 0; n < programs[i].name.length; n++) {
-                        // if the first word of the user command matches a name/alias
-                        if (commands[0] === programs[i].name[n]) {
-                            console.log(`Running ${programs[i].command}`);
-                            child = eval(programs[i].command)();
-                            if (typeof child == 'function') {
-                                child = await child();
-                            }
-
-                            // emulates stderr
-                            if (programs[i].getError()) {
-                                ws.send(programs[i].getError());
-                                ws.send(userPrompt);
-                                first = true;
-                                programs[i].setError(null);
-                            }
-
-                            // emulates stdout
-                            else if (programs[i].getMessage()) {
-                                ws.send(programs[i].getMessage());
-                                ws.send(userPrompt);
-                                first = true;
-                                programs[i].setMessage(null);
-                            }
-
-
-                            found = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (!found) {
-                    first = true;
-                    console.log("Invalid program.");
-                    ws.send("Invalid program.\n", function ack(error) {
-                        console.error("ERROR:", error);
-                    });
-                    ws.send(userPrompt, function ack(error) {
-                        console.error("ERROR:", error);
-                    });
-
-                    child.kill("SIGINT");
-                }
-            }
-
-            //console.log('child:', child);
-            //console.log('typeof child:', typeof child);
-
-            // child is from "psuedo command" like "ls"
-            if (typeof child == 'string') {
-                let data = child;
-                ws.send(data, function ack(error) {
-                    console.error("ERROR:", error);
-                });
-
-                first = true;
-                ws.send(userPrompt, function ack(error) {
-                    console.error("ERROR:", error);
-                });
-            }
-
-            // child is spawned process
-            else {
-                child.stdout.on('data', (data) => {
-                    console.log(`stdout: ${data}`);
-                    ws.send(data, function ack(error) {
-                        console.error("ERROR:", error);
-                    });
-                });
-
-                child.stderr.on('data', (data) => {
-                    console.log(`stdout: ${data}`);
-                    ws.send(data.toString(), function ack(error) {
-                        console.error("ERROR:", error);
-                    });
-                });
-
-                child.on('close', (code) => {
-                    console.log(`child process exited with code ${code}`);
-                    first = true;
-                    child.kill("SIGINT");
-                    ws.send(userPrompt, function ack(error) {
-                        console.error("ERROR:", error);
-                    });
-                });
-            }
-
-        }
-
+        // Program
         else {
-            // signals
-            if (command == "SIGINT") {
-                ws.send("SIGINT received.\n", function ack(error) {
-                    console.error("ERROR:", error);
-                });
-                child.kill("SIGINT");
-                first = true;
-            }
-            if (command == "SIGTSTP") {
-                ws.send("SIGTSTP received.\n", function ack(error) {
-                    console.error("ERROR:", error);
-                });
-                child.kill("SIGTSTP");
-                first = true;
+            // If a child process is ongoing.
+            if (process) {
+                let command = data;
+
+                child.write(command);
+                return;
             }
 
-            // stdin
-            else {
-                console.log("writing to child:", command);
-                child.stdin.write(command + "\n");
+            // No process is ongoing, identify command and spawn process.
+            let command = buff(buffer, data);
+            console.log('command:', command);
+            if (command == null) {
+                return;
             }
+
+            // Close connection.
+            if (command == 'close') {
+                ws.close();
+                return;
+            }
+
+            let commands = command.split(' ');
+            program = findProcess(commands[0]);
+            if (program == null) {
+                const err = {'err': `${commands[0]}: command not found\n`};
+                ws.send(JSON.stringify(err));
+                const exit = {'exit': 1};
+                ws.send(JSON.stringify(exit));
+                return;
+            }
+
+            // If program has 'draw' attribute set to false,
+            // inform client not to write to terminal (the program
+            // will do so.)
+            if (!program.draw) {
+                const obj = {draw: false};
+                ws.send(JSON.stringify(obj));
+            }
+
+            // Spawn child process and store reference in 'child' variable.
+            const args = commands.slice(1);
+            child = program.comm(args);
         }
+
+        // STDOUT
+        child.on('data', (data) => {
+            const out = {'out': data};
+            ws.send(JSON.stringify(out));
+        });
+
+        // STDERR
+        child.on('error', (data) => {
+            const err = {'err': data};
+            ws.send(JSON.stringify(err));
+        });
+
+        // termination
+        child.on('exit', (code) => {
+            const exit = {'exit': code};
+            ws.send(JSON.stringify(exit));
+            process = false;
+        });
+
+        process = true;
     });
 });
 
-
-function write(file, code, ext = '') {
-    let filename = file + ext;
-    fs.writeFile(filename, code, err => {
-        if(err) {
-            return console.log(err);
-        }
-    });
-    console.log(`wrote ${code} to ${filename}`);
+function buff(buffer, data) {
+    if (data.charCodeAt(0) == 13) {
+        command = buffer.join('');
+        buffer.length = 0;
+        return command;
+    }
+    else if (data.charCodeAt(0) == 127) {
+        buffer.pop();
+    }
+    else {
+        buffer.push(data);
+    }
+    return null;
 }
 
-function read(file) {
-    fs.readFile(file, (err, data) => {
-        if (err) throw err;
-        if(err) {
-            return console.log(err);
+function findProcess(command) {
+    // For all processes.
+    for (const program of processes) {
+        for (const name of program.name) {
+            // If the first word of the user command matches a name/alias.
+            if (command == name) {
+                return program;
+            }
         }
-        return data;
-    })
+    }
+
+    // If no available program was found.
+    return null;
 }
+

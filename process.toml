@@ -1,0 +1,114 @@
+# name: Name of the program or language. Used to identify which process to spawn (e.g. 'ls').
+#       Does not need to match the command of the process. Only needs to be unique.
+#
+# comm: Command of the process to spawn (e.g. 'ls').
+#
+# args: Whether arguments from the client should be appended to 'comm' before spawning.
+#       default: false
+#
+# draw: Whether the client is expected to handle the output of the spawned process.
+#       If false, the client should cease output to the terminal for the duration of the process. 
+#       default: true
+#
+# file: File extension of the language (e.g. 'c', 'cpp', 'rs').
+
+# programs
+
+[palindrome]
+name = 'palindrome pal'
+comm = './programs/palindrome'
+args = true
+
+[ls]
+name = 'ls'
+comm = 'ls'
+
+[vim]
+name = 'vim'
+comm = 'vim'
+draw = false
+
+[prime]
+name = 'prime'
+comm = './programs/prime'
+args = true
+
+[withfeathers]
+name = 'withfeathers wf'
+comm = 'python3 ./programs/withfeathers.py'
+args = true
+
+# languages
+
+[c]
+name = 'c'
+file = 'c'
+comm = [
+    'gcc -o <path> <path>.c',
+    '<path>',
+]
+
+[cpp]
+name = 'c++ cpp'
+file = 'cpp'
+comm = [
+    'g++ -o <path> <path>.cpp',
+    '<path>',
+]
+
+[go]
+name = 'go'
+file = 'go'
+comm = 'go run <path>'
+
+[haskell]
+name = 'haskell'
+file = 'hs'
+comm = 'ghci <path>'
+
+[java]
+name = 'java'
+file = 'java'
+comm = [
+    'javac <path>',
+    'class=$(basename -- <path>)',
+    'class="\<path>%.*"',
+    'java $class',
+]
+
+[javascript]
+name = 'javascript'
+file = 'js'
+comm = 'node <path>'
+
+[python]
+name = 'python'
+file = 'py'
+comm = 'python3 <path>'
+
+[ruby]
+name = 'ruby'
+file = 'rb'
+comm = 'ruby <path>'
+
+[rust]
+name = 'rust'
+file = 'rs'
+comm = [
+    'rustc -o <path> <path>.rs',
+    '<path>',
+]
+
+[schema]
+name = 'scheme'
+file = 'scm'
+comm = 'scheme <path>'
+
+[markdown]
+name = 'markdown'
+file = 'md'
+comm = [
+    'pandoc -f markdown -t html -s <path>.md -o <path>.html -H <dir>/head.html',
+    'echo <path>.html',
+]
+
