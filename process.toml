@@ -7,7 +7,7 @@
 #       default: false
 #
 # draw: Whether the client is expected to handle the output of the spawned process.
-#       If false, the client should cease output to the terminal for the duration of the process. 
+#       If false, the client should cease output to the terminal for the duration of the process.
 #       default: true
 #
 # file: File extension of the language (e.g. 'c', 'cpp', 'rs').
@@ -16,26 +16,47 @@
 
 [palindrome]
 name = 'palindrome pal'
-comm = './programs/palindrome'
+comm = 'palindrome'
+args = true
+
+[prime]
+name = 'prime'
+comm = 'prime'
+args = true
+
+[withfeathers]
+name = 'withfeathers wf'
+comm = 'python withfeathers.py'
+args = true
+
+[cowsay]
+name = 'cowsay'
+comm = 'cowsay'
+args = true
+
+[echo]
+name = 'echo'
+comm = 'echo'
+args = true
+
+[fortune]
+name = 'fortune'
+comm = 'fortune'
+args = true
+
+[lolcat]
+name = 'lolcat'
+comm = 'lolcat'
 args = true
 
 [ls]
 name = 'ls'
 comm = 'ls'
-
-[vim]
-name = 'vim'
-comm = 'vim'
-draw = false
-
-[prime]
-name = 'prime'
-comm = './programs/prime'
 args = true
 
-[withfeathers]
-name = 'withfeathers wf'
-comm = 'python3 ./programs/withfeathers.py'
+[pipes]
+name = 'pipes.sh'
+comm = 'pipes.sh'
 args = true
 
 # languages
@@ -59,37 +80,40 @@ comm = [
 [go]
 name = 'go'
 file = 'go'
-comm = 'go run <path>'
+comm = 'go run <path>.go'
 
 [haskell]
 name = 'haskell'
 file = 'hs'
-comm = 'ghci <path>'
+comm = 'ghci <path>.hs'
 
 [java]
 name = 'java'
 file = 'java'
 comm = [
-    'javac <path>',
-    'class=$(basename -- <path>)',
-    'class="\<path>%.*"',
-    'java $class',
+    'CLASS=$(grep "class" <path>.java | cut -d " " -f 3)',
+    'NEW_PATH=<path>-java',
+    'mkdir -p $NEW_PATH',
+    'mv <path>.java $NEW_PATH/$CLASS.java',
+    'cd $NEW_PATH',
+    'javac $CLASS.java',
+    'java $CLASS',
 ]
 
 [javascript]
 name = 'javascript'
 file = 'js'
-comm = 'node <path>'
+comm = 'node <path>.js'
 
 [python]
 name = 'python'
 file = 'py'
-comm = 'python3 <path>'
+comm = 'python <path>.py'
 
 [ruby]
 name = 'ruby'
 file = 'rb'
-comm = 'ruby <path>'
+comm = 'ruby <path>.rb'
 
 [rust]
 name = 'rust'
@@ -102,13 +126,13 @@ comm = [
 [schema]
 name = 'scheme'
 file = 'scm'
-comm = 'scheme <path>'
+comm = 'scheme <path>.scm'
 
 [markdown]
 name = 'markdown'
 file = 'md'
 comm = [
     'pandoc -f markdown -t html -s <path>.md -o <path>.html -H <dir>/head.html',
-    'echo <path>.html',
+    'echo <url><path>.html',
 ]
 

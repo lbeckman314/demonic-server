@@ -8,7 +8,7 @@ const {spawn, exec} = require('child_process');
 const wss = new WebSocket.Server({ server });
 const port = process.argv[2] || 8181;
 server.listen(port);
-console.log('Waiting for clients at ws://localhost:' + port);
+console.log('Waiting for clients at wss://localhost:' + port);
 
 wss.on('connection', (ws) => {
     console.log('Client connected!');
@@ -29,7 +29,6 @@ wss.on('connection', (ws) => {
         if (obj.data != null) {
             data = obj.data;
         }
-        console.log(obj.lang != null && obj.code != null);
 
         // Language
         if (obj.lang != null && obj.code != null) {
@@ -53,7 +52,6 @@ wss.on('connection', (ws) => {
 
             // No process is ongoing, identify command and spawn process.
             let command = buff(buffer, data);
-            console.log('command:', command);
             if (command == null) {
                 return;
             }
@@ -64,15 +62,30 @@ wss.on('connection', (ws) => {
                 return;
             }
 
-            let commands = command.split(' ');
-            program = findProcess(commands[0]);
-            if (program == null) {
-                const err = {'err': `${commands[0]}: command not found\n`};
-                ws.send(JSON.stringify(err));
+            let commands = command.split(/[\|;]/);
+            let notFound = [];
+            let found = [];
+            for (const command of commands) {
+                const name = command.trim().split(' ')[0]
+                program = findProcess(name);
+                if (program == null) {
+                    notFound.push(name);
+                }
+                else {
+                    found.push(program);
+                }
+            }
+            if (notFound.length > 0) {
+                for (const comm of notFound) {
+                    const err = {'err': `${comm}: command not found\n`};
+                    ws.send(JSON.stringify(err));
+                }
                 const exit = {'exit': 1};
                 ws.send(JSON.stringify(exit));
                 return;
             }
+
+            program = found[0];
 
             // If program has 'draw' attribute set to false,
             // inform client not to write to terminal (the program
@@ -83,7 +96,7 @@ wss.on('connection', (ws) => {
             }
 
             // Spawn child process and store reference in 'child' variable.
-            const args = commands.slice(1);
+            const args = command.split(' ').slice(1).join(' ');
             child = program.comm(args);
         }
 

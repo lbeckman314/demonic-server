@@ -10,10 +10,6 @@ class Process {
     constructor(name, comm) {
         this.name = name;
         this.comm = comm;
-        this.options = {
-            detached: true,
-            stdio: 'inherit',
-        };
     }
 }
 
@@ -25,55 +21,61 @@ fs.createReadStream('process.toml', 'utf8').pipe(concat((data) => {
     const sandbox = 'firejail';
     const args = [
         '--quiet',
-        '--net=none',
         '--hostname=demonic',
         '--nice=10',
-        '--private-home=/tmp/demonic/bin',
+        '--private-home=/srv/chroot/home/demo',
+        '--chroot=/srv/chroot',
+        '--env=PATH=/home/demo/bin',
         'sh',
         '-c',
     ];
 
     for (const prop in parsed) {
-        const process = parsed[prop];
-        let name = process.name.split(' ');
+        const proc = parsed[prop];
+        let name = proc.name.split(' ');
         let userArgs = false;
-        let command = process.comm;
+        let command = proc.comm;
         if (Array.isArray(command)) {
             command = command.join(';');
         }
 
-        if (process.args) {
-            userArgs = process.args;
+        if (proc.args) {
+            userArgs = proc.args;
         }
+
+        const options = {};
 
         // Program
         const comm = (arg) => {
             if (userArgs) {
-                return new pty.spawn(shell, args.concat(`${command} ${arg}`), this.options);
+                return new pty.spawn(sandbox, args.concat(`${command} ${arg}`), options);
             }
 
-            return new pty.spawn(shell, args.concat(command), this.options);
+            return new pty.spawn(sandbox, args.concat(command), options);
         }
 
         // Language
-        if (process.file) {
+        if (proc.file) {
             const comm = (code) => {
                 let path = '';
-                const dir = '/tmp/demonic';
+                const writeDir = '/srv/chroot';
+                const dir = '/tmp';
+                const url = 'https://demo.liambeckman.com';
 
                 // Create random file name with correct file extension.
                 // Verify that file with same name does not exist.
                 while (path.length == '') {
                     const id = Math.floor(Math.random() * 1e3);
-                    path = `${dir}/tmp-${id}`;
+                    path = `${dir}/tmp-${id}.${proc.file}`;
                 }
                 // Write code to file.
-                fs.writeFileSync(`${path}.${process.file}`, code);
+                fs.writeFileSync(`${writeDir}/${path}.${proc.file}`, code);
 
                 let pathCommand = command.replace(/<path>/g, path);
                 pathCommand = pathCommand.replace(/<dir>/g, dir);
+                pathCommand = pathCommand.replace(/<url>/g, url);
 
-                return new pty.spawn(shell, args.concat(pathCommand));
+                return new pty.spawn(sandbox, args.concat(pathCommand));
             }
 
             processes.push(new Process(name, comm));
