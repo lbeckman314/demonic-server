@@ -1,18 +1,18 @@
+![demonic logo](./demonic.png)
+
 # demonic server
 
-<img src="demo-logo.png" width=250/>
+A web-based client for running commands and code snippets in a sandboxed environment.
 
-A fake terminal cleans up user input and sends it to the server. The server then parses the input, and if it matches a predefined command, spawns a child process of that command/program. I really liked the ability to try out haskell interactively [here](https://www.haskell.org/) and [here](https://tryhaskell.org/), so this is something like that.
+I really liked the ability to try out haskell interactively at [haskell.org](https://www.haskell.org/), so this is something like that.
 
-Try it out [here](https://liambeckman.com/code/demo).
-
-<a href="https://liambeckman.com/code/demo">
-    <img src="demo.png"/>
-</a>
-
-# Installation and Running
+# Installation
 
 ```sh
+# get code
+git clone https://github.com/lbeckman314/demo-server
+cd demo-server
+
 # install dependencies
 npm install
 
@@ -20,22 +20,22 @@ npm install
 cp config-example.js config.js
 
 # edit key, certificate, and passphrase information
-nano config.js
+vim config.js
 
 # run server (if no port number is provided, 12345 in this example, the server will default to port 8181)
 node server.js 12345
 
 # edit server information
-nano demo.js
+vim demo.js
 
-# then you can connect to the server from a client (e.g. client-example.html)
+# then you can connect to the server from a client (e.g. client.html)
 ```
 
 # Uninstallation
 
 ```sh
 # remove this directory
-rm -rfI demo
+rm -rfI demo-server
 ```
 
 # Message Protocol
@@ -85,13 +85,14 @@ rm -rfI demo
 
 ## Client to Server
 
-mode: Keyword to inform server of expected behavior. Possible options are 'shell' and 'code'.
-lang: If mode is set to 'code', language specifies the respective programming language.
-content: The commands or code sent by the user to be evaulted by the server.
+- mode: Keyword to inform server of expected behavior. Possible options are 'shell' and 'code'.
+- lang: If mode is set to 'code', language specifies the respective programming language.
+- data: The commands or code sent by the user to be evaulted by the server.
 
 ## Server to Client
 
-exit: Exit status of spawned process.
-control: Keyword to inform client that spawned process will handle output of characters (e.g. vim). Disables writing client-side as well as buffering server-side.
-out: STDOUT of the spawned process.
-err: STDERR of the spawned process.
+- exit: Exit status of spawned process.
+- control: Keyword to inform client that spawned process will handle output of characters (e.g. vim). Disables writing client-side as well as buffering server-side.
+- out: STDOUT of the spawned process.
+- err: STDERR of the spawned process.
+
