@@ -25,7 +25,13 @@ wss.on('connection', (ws) => {
     let data = '';
 
     ws.on('message', (message) => {
-        obj = JSON.parse(message);
+        try {
+            obj = JSON.parse(message);
+        } catch(err) {
+            console.error('Unable to parse JSON:', message);
+            return;
+        }
+
         if (obj.data != null) {
             data = obj.data;
         }
