@@ -1,18 +1,15 @@
-const BSON = require('bson');
 const WebSocket = require('ws');
-const fs = require('fs');
-const server = require('./config.js');
-const {Process, processes} = require('./process.js');
-const {spawn, exec} = require('child_process');
+const server = require('./ws-config.js');
+const processes = require('./process.js');
 
 const wss = new WebSocket.Server({ server });
 const port = process.argv[2] || 8181;
 server.listen(port);
-console.log('Waiting for clients at wss://localhost:' + port);
+
+const proto = server.hasOwnProperty('cert') ? 'wss' : 'ws';
+console.log(`Waiting for clients at ${proto}://localhost:` + port);
 
 wss.on('connection', (ws) => {
-    console.log('Client connected!');
-
     // An ongoing process is present.
     // Incoming data should be sent to it's STDIN.
     let process = false;
@@ -22,19 +19,22 @@ wss.on('connection', (ws) => {
     userPrompt = '> ';
     buffer = [];
     let obj = {};
-    let data = '';
+    let data;
 
-    ws.on('message', (message) => {
+    ws.on('message', (msg) => {
         try {
-            obj = JSON.parse(message);
+            obj = JSON.parse(msg);
         } catch(err) {
-            console.error('Unable to parse JSON:', message);
             return;
         }
 
-        if (obj.data != null) {
-            data = obj.data;
+        if (obj.exit == 1) {
+            child.kill();
+            return;
         }
+
+        if (obj.data != null)
+            data = obj.data;
 
         // Language
         if (obj.lang != null && obj.code != null) {
@@ -42,38 +42,63 @@ wss.on('connection', (ws) => {
             ws.send(JSON.stringify(loading));
 
             program = findProcess(obj.lang);
+
+            if (program == null) {
+                let err = {'err': `${obj.lang}: command not found\n`};
+                ws.send(JSON.stringify(err));
+
+                let exit = {'exit': 1};
+                ws.send(JSON.stringify(exit));
+
+                return;
+            }
             ws.send(JSON.stringify({draw: false}));
-            child = program.comm(obj.code);
+            child = program.cmd(obj.code);
         }
 
         // Program
         else {
             // If a child process is ongoing.
             if (process) {
-                let command = data;
+                child.write(data);
+                return;
+            }
 
-                child.write(command);
+            if (typeof data == 'undefined')
+                return;
+
+            if (data == '\u001b[2K\r') {
+                buffer.length = 0;
+                return;
+            }
+
+            if (data == '\f' || data == '\u0015' ||
+                data == '\u001b[A' || data == '\u001b[B') {
+                return;
+            }
+
+            if (data == '\r' && buffer.length == 0) {
+                let exit = {'exit': 1};
+                ws.send(JSON.stringify(exit));
                 return;
             }
 
             // No process is ongoing, identify command and spawn process.
-            let command = buff(buffer, data);
-            if (command == null) {
-                return;
-            }
+            let cmd = addToBuffer(buffer, data);
 
-            // Close connection.
-            if (command == 'close') {
-                ws.close();
+            if (cmd == null)
                 return;
-            }
 
-            let commands = command.split(/[\|;]/);
+            ws.send(JSON.stringify({'cmd': cmd}));
+
+            let cmds = cmd.split(/[\|;]/);
             let notFound = [];
             let found = [];
-            for (const command of commands) {
-                const name = command.trim().split(' ')[0]
+
+            for (const cmd of cmds) {
+                const name = cmd.trim().split(' ')[0]
                 program = findProcess(name);
+
                 if (program == null) {
                     notFound.push(name);
                 }
@@ -81,13 +106,13 @@ wss.on('connection', (ws) => {
                     found.push(program);
                 }
             }
+
             if (notFound.length > 0) {
-                for (const comm of notFound) {
-                    const err = {'err': `${comm}: command not found\n`};
+                for (const cmd of notFound) {
+                    const err = {'err': `${cmd}: command not found\n`};
                     ws.send(JSON.stringify(err));
                 }
-                const exit = {'exit': 1};
-                ws.send(JSON.stringify(exit));
+                ws.send(JSON.stringify({'exit': 1}));
                 return;
             }
 
@@ -96,20 +121,26 @@ wss.on('connection', (ws) => {
             // If program has 'draw' attribute set to false,
             // inform client not to write to terminal (the program
             // will do so.)
-            if (!program.draw) {
-                const obj = {draw: false};
-                ws.send(JSON.stringify(obj));
+            if (!program.draw)
+                ws.send(JSON.stringify({'draw': false}));
+
+            const dims = {
+                cols: obj.cols,
+                rows: obj.rows,
             }
 
             // Spawn child process and store reference in 'child' variable.
-            const args = command.split(' ').slice(1).join(' ');
-            child = program.comm(args);
+            child = program.cmd(cmd, dims);
         }
 
         // STDOUT
         child.on('data', (data) => {
             const out = {'out': data};
-            ws.send(JSON.stringify(out));
+            try {
+                ws.send(JSON.stringify(out));
+            } catch(err) {
+                console.log(err);
+            }
         });
 
         // STDERR
@@ -118,7 +149,7 @@ wss.on('connection', (ws) => {
             ws.send(JSON.stringify(err));
         });
 
-        // termination
+        // Exit Code
         child.on('exit', (code) => {
             const exit = {'exit': code};
             ws.send(JSON.stringify(exit));
@@ -129,29 +160,31 @@ wss.on('connection', (ws) => {
     });
 });
 
-function buff(buffer, data) {
+function addToBuffer(buffer, data) {
     if (data.charCodeAt(0) == 13) {
         command = buffer.join('');
         buffer.length = 0;
         return command;
     }
+
     else if (data.charCodeAt(0) == 127) {
-        buffer.pop();
+        let lastElement = buffer.pop();
+        if (lastElement != null && lastElement.length > 1)
+            buffer.push(lastElement.slice(0, -1));
     }
-    else {
+
+    else
         buffer.push(data);
-    }
+
     return null;
 }
 
 function findProcess(command) {
     // For all processes.
     for (const program of processes) {
-        for (const name of program.name) {
-            // If the first word of the user command matches a name/alias.
-            if (command == name) {
-                return program;
-            }
+        // If the first word of the user command matches a name/alias.
+        if (command == program.name) {
+            return program;
         }
     }
 

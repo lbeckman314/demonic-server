@@ -1,4 +1,4 @@
-![demonic logo](./demonic.png)
+![demonic logo](./assets/demonic.png)
 
 # demonic server
 
@@ -23,12 +23,9 @@ cp config-example.js config.js
 vim config.js
 
 # run server (if no port number is provided, 12345 in this example, the server will default to port 8181)
-node server.js 12345
+npm run server -- 12345
 
-# edit server information
-vim demo.js
-
-# then you can connect to the server from a client (e.g. client.html)
+# then you can connect to the server from a demonic client.
 ```
 
 # Uninstallation

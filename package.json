@@ -3,14 +3,14 @@
     "version": "0.1.0",
     "description": "Demonic server for running commands and code snippets in a sandboxed environment.",
     "license": "Apache-2.0",
-    "main": "server.js",
+    "main": "demo-server.js",
     "scripts": {
-        "build": "webpack --config webpack.config.js --mode production",
-        "dev": "webpack --config webpack.config.js --mode development",
-        "watch": "webpack --config webpack.config.js --mode development --watch"
+        "server": "node src/demo-server.js",
+        "watch": "nodemon src/demo-server.js"
     },
     "dependencies": {
         "bson": "^4.0.2",
+        "concat-stream": "^2.0.0",
         "node-pty": "^0.9.0",
         "toml": "^3.0.0",
         "ws": "^6.2.1"
