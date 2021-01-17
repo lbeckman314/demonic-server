@@ -1,5 +1,5 @@
 const WebSocket = require('ws');
-const server = require('./ws-config.js');
+const server = require('./config.js');
 const processes = require('./process.js');
 
 const wss = new WebSocket.Server({ server });
@@ -10,16 +10,25 @@ const proto = server.hasOwnProperty('cert') ? 'wss' : 'ws';
 console.log(`Waiting for clients at ${proto}://localhost:` + port);
 
 wss.on('connection', (ws) => {
-    // An ongoing process is present.
-    // Incoming data should be sent to it's STDIN.
     let process = false;
-    let child = {};
     let program = {};
-
-    userPrompt = '> ';
-    buffer = [];
+    let buffer = [];
     let obj = {};
-    let data;
+    let child = {};
+
+    const send = (data) => {
+        try {
+            if (ws.readyState == WebSocket.OPEN)
+                ws.send(JSON.stringify(data));
+        } catch (err) {
+            console.log(err);
+        }
+    }
+
+    ws.on('close', () => {
+        if (typeof child.kill == 'function')
+            child.kill();
+    });
 
     ws.on('message', (msg) => {
         try {
@@ -28,68 +37,56 @@ wss.on('connection', (ws) => {
             return;
         }
 
-        if (obj.exit == 1) {
-            child.kill();
-            return;
-        }
-
-        if (obj.data != null)
-            data = obj.data;
-
         // Language
-        if (obj.lang != null && obj.code != null) {
-            const loading = {'loading': 'true'};
-            ws.send(JSON.stringify(loading));
+        if (obj.lang != null) {
+            send({loading: 'true'});
 
             program = findProcess(obj.lang);
-
             if (program == null) {
-                let err = {'err': `${obj.lang}: command not found\n`};
-                ws.send(JSON.stringify(err));
-
-                let exit = {'exit': 1};
-                ws.send(JSON.stringify(exit));
+                send({err: `${obj.lang}: command not found\n`});
+                send({exit: 1});
 
                 return;
             }
-            ws.send(JSON.stringify({draw: false}));
-            child = program.cmd(obj.code);
+            send({draw: false});
+
+            child = program.cmd(obj.data);
+            process = true;
         }
 
         // Program
         else {
             // If a child process is ongoing.
             if (process) {
-                child.write(data);
+                child.write(obj.data);
                 return;
             }
 
-            if (typeof data == 'undefined')
+            if (typeof obj.data == 'undefined')
                 return;
 
-            if (data == '\u001b[2K\r') {
+            if (obj.data == '\u001b[2K\r') {
                 buffer.length = 0;
                 return;
             }
 
-            if (data == '\f' || data == '\u0015' ||
-                data == '\u001b[A' || data == '\u001b[B') {
+            if (obj.data == '\f' || obj.data == '\u0015' ||
+                obj.data == '\u001b[A' || obj.data == '\u001b[B') {
                 return;
             }
 
-            if (data == '\r' && buffer.length == 0) {
-                let exit = {'exit': 1};
-                ws.send(JSON.stringify(exit));
+            if (obj.data == '\r' && buffer.length == 0) {
+                send({exit: 1});
                 return;
             }
 
             // No process is ongoing, identify command and spawn process.
-            let cmd = addToBuffer(buffer, data);
+            let cmd = addToBuffer(buffer, obj.data);
 
             if (cmd == null)
                 return;
 
-            ws.send(JSON.stringify({'cmd': cmd}));
+            send({cmd: cmd});
 
             let cmds = cmd.split(/[\|;]/);
             let notFound = [];
@@ -108,11 +105,10 @@ wss.on('connection', (ws) => {
             }
 
             if (notFound.length > 0) {
-                for (const cmd of notFound) {
-                    const err = {'err': `${cmd}: command not found\n`};
-                    ws.send(JSON.stringify(err));
-                }
-                ws.send(JSON.stringify({'exit': 1}));
+                for (const cmd of notFound)
+                    send({err: `${cmd}: command not found\n`});
+
+                send({exit: 1});
                 return;
             }
 
@@ -122,7 +118,7 @@ wss.on('connection', (ws) => {
             // inform client not to write to terminal (the program
             // will do so.)
             if (!program.draw)
-                ws.send(JSON.stringify({'draw': false}));
+                send({draw: false});
 
             const dims = {
                 cols: obj.cols,
@@ -135,9 +131,8 @@ wss.on('connection', (ws) => {
 
         // STDOUT
         child.on('data', (data) => {
-            const out = {'out': data};
             try {
-                ws.send(JSON.stringify(out));
+                send({out: data});
             } catch(err) {
                 console.log(err);
             }
@@ -145,14 +140,13 @@ wss.on('connection', (ws) => {
 
         // STDERR
         child.on('error', (data) => {
-            const err = {'err': data};
-            ws.send(JSON.stringify(err));
+            send({err: data});
         });
 
         // Exit Code
         child.on('exit', (code) => {
-            const exit = {'exit': code};
-            ws.send(JSON.stringify(exit));
+            const exit = {exit: code};
+            send(exit);
             process = false;
         });
 

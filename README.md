@@ -1,26 +1,36 @@
 ![demonic logo](./assets/demonic.png)
 
-# demonic server
+# demonic-server
 
-A web-based client for running commands and code snippets in a sandboxed environment.
+The backend for a web-based terminal to run commands and code snippets in a sandboxed environment.
 
-I really liked the ability to try out haskell interactively at [haskell.org](https://www.haskell.org/), so this is something like that.
+Try it out at [liambeckman.com/code/demonic](https://liambeckman.com/code/demonic).
+
+[![demonic in action](./assets/demonic-web.png)](https://liambeckman.com/code/demonic)
+
+## Inspired By
+
+Demonic was inspired by the following cool projects:
+
+- [Rust Playground](https://play.rust-lang.org/)
+- [Try Haskell!](https://www.tryhaskell.org/)
+- [Repl.it](https://repl.it/languages/c)
 
 # Installation
 
 ```sh
 # get code
-git clone https://github.com/lbeckman314/demo-server
-cd demo-server
+git clone https://github.com/lbeckman314/demonic-server
+cd demonic-server
 
 # install dependencies
 npm install
 
 # copy example config
-cp config-example.js config.js
+cp src/config-example.js src/config.js
 
 # edit key, certificate, and passphrase information
-vim config.js
+vim src/config.js
 
 # run server (if no port number is provided, 12345 in this example, the server will default to port 8181)
 npm run server -- 12345
@@ -32,64 +42,70 @@ npm run server -- 12345
 
 ```sh
 # remove this directory
-rm -rfI demo-server
+rm -rf demonic-server
 ```
 
 # Message Protocol
 
-- Connection is established between client and server.
+1) Connection is established between **client** and **server**. **Client** displays user prompt.
 
-- Client sends server the command mode (and language if `mode` is set to 'code').
-
-```json
-{
-    "mode": "shell",
-}
+```
+user @ demonic >
 ```
 
-```json
-{
-    "mode": "code",
-    "lang": "ruby",
-}
+2) **Client** sends user input to the **server**.
+
+```
+user @ demonic > echo "Wow, I'm in a shell!"\n
 ```
 
-- Client sends server data on every keypress.
+4) **Server** searches for `echo` in the list of allowed programs. If found, **server** spawns the `echo` process.
 
-- Server buffers the incoming data until a 'newline' charcter is received.
-
-- Server finds the program named in the input, and sends the contents of the input buffer to that program.
-
-- Server sends client the output of the command.
+5) **Server** sends **client** the output of the command.
 
 ```json
-{
-    "out": "Wow, I'm in a shell!"
-}
+{ out: "Wow, I'm in a shell!" }
 ```
 
-- Client displays output on terminal.
+6) **Client** displays output of the command to the user.
 
-- Server sends client the exit status of the command.
+```
+user @ demonic > echo "Wow, I'm in a shell!"\n
+Wow, I'm in a shell!
+```
+
+7) **Server** sends **client** the exit status of the command.
 
 ```json
-{
-    "exit": 0
-}
+{ exit: 0 }
 ```
 
-- Client displays user prompt on terminal.
+- **Client** displays user prompt on terminal. Ready for next command!
+
+```
+user @ demonic >
+```
 
 ## Client to Server
 
-- mode: Keyword to inform server of expected behavior. Possible options are 'shell' and 'code'.
-- lang: If mode is set to 'code', language specifies the respective programming language.
-- data: The commands or code sent by the user to be evaulted by the server.
+| Keyword | Data Type | Description                                                         | Example                            |
+|---------|-----------|---------------------------------------------------------------------|------------------------------------|
+| `data`  | String    | The commands or code sent by the user to be evaulted by the server. | `print("Wow, I'm in a language!")` |
+| `lang`  | String    | What programming language to compile or interpret `data`.           | `python`                           |
 
 ## Server to Client
 
-- exit: Exit status of spawned process.
-- control: Keyword to inform client that spawned process will handle output of characters (e.g. vim). Disables writing client-side as well as buffering server-side.
-- out: STDOUT of the spawned process.
-- err: STDERR of the spawned process.
+| Keyword   | Data Type | Description                                                                      | Example                                          |
+|-----------|-----------|----------------------------------------------------------------------------------|--------------------------------------------------|
+| `exit`    | Number    | Exit status of spawned process.                                                  | `0`                                              |
+| `draw`    | Boolean   | Informs client that spawned process will handle output of characters (e.g. vim). | `false`                                          |
+| `out`     | String    | STDOUT of the spawned process.                                                   | `Wow, I'm in a language!`                         |
+| `err`     | String    | STDERR of the spawned process.                                                   | `SyntaxError: EOL while scanning string literal` |
+| `loading` | Boolean   | Informs client that process is ongoing and output is forthcoming.                | `true`                                           |
+
+
+# See Also
+
+- [Demonic-Web](https://github.com/lbeckman314/demonic-web): A client for this backend service.
+- [Demonic-Docs](https://github.com/lbeckman314/demonic-docs): Integrates demonic-web into your documentation.
 

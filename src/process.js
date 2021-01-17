@@ -13,7 +13,7 @@ class Process {
     }
 }
 
-const cfg = yaml.safeLoad(fs.readFileSync('src/config.yml', 'utf8'));
+const cfg = yaml.load(fs.readFileSync('src/process.yml', 'utf8'));
 const sandboxCmd = cfg.sandbox.split(' ');
 
 for (let prog in cfg.progs) {

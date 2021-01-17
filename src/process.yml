@@ -39,7 +39,11 @@ progs:
 
   lolcat: {}
 
-  sleep: {
+  ls: {}
+  cd: {}
+  pwd: {}
+  mv: {}
+  rm: {}
   man: {}
   less: {}
   cat: {}

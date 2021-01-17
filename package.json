@@ -5,12 +5,13 @@
     "license": "Apache-2.0",
     "main": "demo-server.js",
     "scripts": {
-        "server": "node src/demo-server.js",
-        "watch": "nodemon src/demo-server.js"
+        "server": "node src/demonic-server.js",
+        "watch": "nodemon src/demonic-server.js"
     },
     "dependencies": {
-        "bson": "^4.0.2",
+        "bson": "^4.2.2",
         "concat-stream": "^2.0.0",
+        "js-yaml": "^4.0.0",
         "node-pty": "^0.9.0",
         "toml": "^3.0.0",
         "ws": "^6.2.1"
