@@ -23,8 +23,8 @@ for (let prog in cfg.progs) {
         let spawnArgs;
 
         if (progObj.cmd) {
-            spawnArgs = sandboxCmd.concat(progObj.cmd)
-                                  .concat(args.split(' ').slice(1).join(' '));
+            let cmd = progObj.cmd.concat(' ', args.split(' ').slice(1).join(' '));
+            spawnArgs = sandboxCmd.concat(cmd)
         }
 
         else
