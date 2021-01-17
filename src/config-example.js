@@ -3,9 +3,9 @@ const fs = require('fs');
 const WebSocket = require('ws');
 
 const server = new https.createServer({
-    cert: fs.readFileSync('/path/to/cert.pem'),
-    key: fs.readFileSync('/path/to/key.pem'),
-    passphrase: 'PASSWORD'
+    cert: fs.readFileSync('../keys/cert.pem'),
+    key: fs.readFileSync('../keys/key.pem'),
+    passphrase: 'hunter2'
 });
 
 module.exports = server;

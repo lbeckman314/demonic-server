@@ -9,26 +9,24 @@
 #
 # file: File extension of the language (e.g. 'c', 'cpp', 'rs').
 
-#firejail
-#--quiet
-#--hostname=demonic
-#--nice=10
-#--private-home=/srv/chroot/home/demo
-#--chroot=/srv/chroot
-#--env=PATH=/home/demo/bin
-sandbox: "sh -c"
+sandbox: "firejail
+--quiet
+--hostname=demonic
+--nice=10
+--private-home=/srv/chroot/home/demo
+--chroot=/srv/chroot
+--env=PATH=/home/demo/bin
+sh -c"
 
 url: https://demo.liambeckman.com
 
 # programs
 progs:
-  palindrome:
-    alias: pal
+  palindrome: {}
 
   prime: {}
 
   withfeathers:
-    alias: wf
     cmd: python withfeathers.py
 
   cowsay: {}
