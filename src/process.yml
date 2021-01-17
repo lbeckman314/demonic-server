@@ -13,9 +13,9 @@ sandbox: "firejail
 --quiet
 --hostname=demonic
 --nice=10
---private-home=/srv/chroot/home/demo
+--private
 --chroot=/srv/chroot
---env=PATH=/home/demo/bin
+--env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games
 sh -c"
 
 url: https://demo.liambeckman.com
@@ -27,28 +27,24 @@ progs:
   prime: {}
 
   withfeathers:
-    cmd: python withfeathers.py
-
-  cowsay: {}
-
-  echo: {}
-
-  fortune: {}
-
-  lolcat: {}
-
-  ls: {}
-  cd: {}
-  pwd: {}
-  mv: {}
-  rm: {}
-  man: {}
-  less: {}
-  cat: {}
-
-  pipes.sh: {}
+    cmd: python3 /srv/withfeathers.py
 
   cmatrix: {}
+  cowsay: {}
+  fortune: {}
+  lolcat: {}
+  pipes.sh: {}
+
+  cat: {}
+  cd: {}
+  echo: {}
+  less: {}
+  ls: {}
+  man: {}
+  mv: {}
+  pwd: {}
+  rm: {}
+  which: {}
 
   vim:
     draw: false

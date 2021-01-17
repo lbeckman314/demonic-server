@@ -17,8 +17,16 @@ const cfg = yaml.load(fs.readFileSync('src/process.yml', 'utf8'));
 const sandboxCmd = cfg.sandbox.split(' ');
 
 for (let prog in cfg.progs) {
+    let progObj = cfg.progs[prog];
+
     const spawnCmd = (args, dims) => {
-        let spawnArgs = sandboxCmd.concat(args);
+        let spawnArgs;
+
+        if (progObj.cmd)
+            spawnArgs = sandboxCmd.concat(progObj.cmd);
+
+        else
+            spawnArgs = sandboxCmd.concat(args);
 
         let opt = {};
 
