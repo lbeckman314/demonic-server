@@ -22,8 +22,10 @@ for (let prog in cfg.progs) {
     const spawnCmd = (args, dims) => {
         let spawnArgs;
 
-        if (progObj.cmd)
-            spawnArgs = sandboxCmd.concat(progObj.cmd);
+        if (progObj.cmd) {
+            spawnArgs = sandboxCmd.concat(progObj.cmd)
+                                  .concat(args.split(' ').slice(1).join(' '));
+        }
 
         else
             spawnArgs = sandboxCmd.concat(args);
