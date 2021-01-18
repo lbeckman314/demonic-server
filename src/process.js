@@ -49,11 +49,11 @@ for (let lang in cfg.langs) {
 
     const spawnCmd = (code) => {
         // Create temporary directory to hold script files.
-        // e.g. the directory for a C script on a UNIX machine would be '/tmp/demo-abc123/'.
+        // e.g. the directory for a C script on a UNIX machine would be '/tmp/demonic-abc123/'.
         // This directory would then have two files in it:
         //   - the script: 'main.c'
         //   - the executable: 'main'
-        let dir = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-'));
+        let dir = fs.mkdtempSync(path.join(os.tmpdir(), 'demonic-'));
 
         // Create file with correct file extension and write code to file.
         let exePath = path.join(dir, 'main');
