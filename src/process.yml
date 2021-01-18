@@ -19,6 +19,7 @@ sandbox: "firejail
 sh -c"
 
 url: https://demo.liambeckman.com
+chroot: /srv/chroot
 
 # programs
 progs:
