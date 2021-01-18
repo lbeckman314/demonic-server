@@ -53,7 +53,7 @@ for (let lang in cfg.langs) {
         // This directory would then have two files in it:
         //   - the script: 'main.c'
         //   - the executable: 'main'
-        let dir = fs.mkdtempSync(path.join(os.tmpdir(), 'demonic-'));
+        let dir = fs.mkdtempSync(cfg.chroot, path.join(os.tmpdir(), 'demonic-'));
 
         // Create file with correct file extension and write code to file.
         let exePath = path.join(dir, 'main');
