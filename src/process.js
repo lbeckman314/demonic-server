@@ -76,7 +76,7 @@ for (let lang in cfg.langs) {
         if (langObj.rm != false) {
             child.on('exit', async () => {
                 fs.rmdir(dir, { recursive: true }, (err) => {
-                    if (err) throw err;
+                    if (err) console.log(err);
                 })
             });
         }
