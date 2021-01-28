@@ -115,7 +115,7 @@ langs:
   markdown:
     ext: md
     cmd:
-      - pandoc -f markdown -t html -s <path>.md -o <path>.html -H assets/head.html
+      - pandoc -f markdown -t html -s <path>.md -o <path>.html -H /srv/demonic-docs/head.html
       - echo <url><path>.html
     rm: false
 
