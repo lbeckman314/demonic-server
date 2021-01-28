@@ -74,7 +74,7 @@ for (let lang in cfg.langs) {
         let child = new pty.spawn(spawnArgs[0], spawnArgs.slice(1), opt);
 
         if (langObj.rm != false) {
-            child.on('exit', async () => {
+            child.on('exit', () => {
                 fs.rmdir(dir, { recursive: true }, (err) => {
                     if (err) console.log(err);
                 })

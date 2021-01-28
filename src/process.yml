@@ -19,7 +19,7 @@ sandbox: "firejail
 sh -c"
 
 url: https://demo.liambeckman.com
-root: /srv/chroot
+chroot: /srv/chroot
 
 # programs
 progs:
@@ -94,6 +94,10 @@ langs:
     ext: py
     cmd: python <path>.py
 
+  racket:
+    ext: rkt
+    cmd: racket <path>.rkt
+
   ruby:
     ext: rb
     cmd: ruby <path>.rb
@@ -103,6 +107,10 @@ langs:
     cmd:
       - rustc -o <path> <path>.rs
       - <path>
+
+  shell:
+    ext: sh
+    cmd: <path>.sh
 
   markdown:
     ext: md

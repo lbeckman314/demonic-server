@@ -5,7 +5,7 @@
     "license": "Apache-2.0",
     "main": "demo-server.js",
     "scripts": {
-        "server": "node src/demonic-server.js",
+        "start": "node src/demonic-server.js",
         "watch": "nodemon src/demonic-server.js"
     },
     "dependencies": {
