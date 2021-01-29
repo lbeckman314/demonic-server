@@ -169,9 +169,9 @@ firejail --chroot=$CHROOT gcc --version
 | Java       | default-jdk |
 | JavaScript | nodejs      |
 | Python     | python3     |
+| Racket     | racket      |
 | Ruby       | ruby        |
 | Rust       | rustc       |
-| Markdown   | pandoc      |
 
 # See Also
 
