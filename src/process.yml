@@ -34,6 +34,7 @@ progs:
   fortune: {}
   lolcat: {}
   pipes.sh: {}
+  hollywood: {}
 
   cat: {}
   cd: {}
