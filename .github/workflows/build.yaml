@@ -18,8 +18,15 @@ jobs:
 
       - name: Setup tmate session
         uses: mxschmitt/action-tmate@v3
+        env: 
+          USER: ${{ github.actor }}
+          TOKEN: ${{ secrets.TOKEN }}
 
       - name: Build and Push
+        env: 
+          USER: ${{ github.actor }}
+          TOKEN: ${{ secrets.TOKEN }}
         run: |
-          docker buildx create --use --platform=linux/arm64,linux/amd64 --name funnel-builder
-          docker buildx build --platform=linux/amd64,linux/arm64 -t ghcr.io/lbeckman314/demonic-server:latest . --push
+          docker login ghcr.io --username $USER $TOKEN
+          docker buildx create --use --platform=linux/arm64,linux/amd64 --name builder
+          docker buildx build --platform=linux/amd64,linux/arm64 -t ghcr.io/$USER/demonic-server:latest . --push
