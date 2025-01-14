@@ -21,6 +21,6 @@ jobs:
           USER: ${{ github.actor }}
           TOKEN: ${{ secrets.TOKEN }}
         run: |
-          docker login ghcr.io --username $USER $TOKEN
+          docker login ghcr.io --username $USER --password $TOKEN
           docker buildx create --use --platform=linux/arm64,linux/amd64 --name builder
           docker buildx build --platform=linux/amd64,linux/arm64 -t ghcr.io/$USER/demonic-server:latest . --push
