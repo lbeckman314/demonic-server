@@ -23,7 +23,11 @@ jobs:
       matrix:
         arch:
           - amd64
-          - arm64
+          # Disabling arm builds for now until available in public plans
+          # ref:
+          # - https://github.com/orgs/community/discussions/19197
+          # - https://github.com/github/roadmap/issues/970
+          # - arm64
           
     steps:
       - name: Checkout repository
