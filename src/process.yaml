@@ -9,15 +9,7 @@
 #
 # file: File extension of the language (e.g. 'c', 'cpp', 'rs').
 
-sandbox: "firejail
---quiet
---hostname=demonic
---nice=10
---private
---private-tmp
---chroot=/srv/chroot
---env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games
-sh -c"
+sandbox: firejail --quiet --hostname=demonic --private --private-tmp --chroot=/srv/chroot --env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games --env=LC_ALL=en_US.UTF-8 sh -c
 
 root: /srv/chroot
 

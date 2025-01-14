@@ -8,6 +8,7 @@
             "type": "pwa-node",
             "request": "launch",
             "name": "Launch Program",
+            "runtimeExecutable": "/Users/beckmanl/.nvm/versions/node/v18.19.0/bin/node",
             "skipFiles": [
                 "<node_internals>/**"
             ],

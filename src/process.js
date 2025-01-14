@@ -13,7 +13,7 @@ class Process {
     }
 }
 
-const cfg = yaml.load(fs.readFileSync('src/process.yml', 'utf8'));
+const cfg = yaml.load(fs.readFileSync('src/process.yaml', 'utf8'));
 const sandboxCmd = cfg.sandbox.split(' ');
 
 for (let prog in cfg.progs) {
@@ -38,6 +38,9 @@ for (let prog in cfg.progs) {
         if (dims.rows)
             opt.rows = dims.rows;
 
+        console.log("DEBUG: spawnArgs: ", spawnArgs);
+        console.log("DEBUG: spawnArgs[0]: ", spawnArgs[0]);
+        console.log("DEBUG: spawnArgs.slice(1): ", spawnArgs.slice(1));
         return new pty.spawn(spawnArgs[0], spawnArgs.slice(1), opt);
     }
 

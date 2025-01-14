@@ -10,6 +10,7 @@ const proto = server.hasOwnProperty('cert') ? 'wss' : 'ws';
 console.log(`Waiting for clients at ${proto}://localhost:` + port);
 
 wss.on('connection', (ws) => {
+    console.log('Client connected!');
     let process = false;
     let program = {};
     let buffer = [];
@@ -36,6 +37,7 @@ wss.on('connection', (ws) => {
         } catch(err) {
             return;
         }
+        console.log("DEBUG: obj:", obj)
 
         // Language
         if (obj.lang != null) {
