@@ -50,4 +50,3 @@ jobs:
           push: true
           tags: ghcr.io/${{ github.repository }}:latest
           platforms: linux/${{ matrix.arch }}
-
