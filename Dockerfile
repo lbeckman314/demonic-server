@@ -32,7 +32,9 @@ RUN chroot /srv/chroot /bin/bash -c "echo 'LC_ALL=en_US.UTF-8' >> /etc/environme
     locale-gen en_US.UTF-8"
 
 # Languages
-RUN chroot /srv/chroot /bin/bash -c "apt-get install -y \
+RUN chroot /srv/chroot /bin/bash -c "\
+  mount -t proc proc /proc && \
+  apt-get install -y \
     default-jdk \
     gcc \
     g++ \
@@ -43,7 +45,8 @@ RUN chroot /srv/chroot /bin/bash -c "apt-get install -y \
     python3 \
     racket \
     ruby \
-    rustc"
+    rustc; \
+  status=$?; umount /proc; exit $status"
 
 RUN chroot /srv/chroot /bin/bash -c "ln -s /usr/bin/python3 /usr/bin/python"
 
