@@ -32,21 +32,18 @@ RUN chroot /srv/chroot /bin/bash -c "echo 'LC_ALL=en_US.UTF-8' >> /etc/environme
     locale-gen en_US.UTF-8"
 
 # Languages
-RUN chroot /srv/chroot /bin/bash -c "\
-  mount -t proc proc /proc && \
-  apt-get install -y \
-    default-jdk \
-    gcc \
-    g++ \
-    ghc \
-    golang-go \
-    nodejs \
-    npm \
-    python3 \
-    racket \
-    ruby \
-    rustc; \
-  status=$?; umount /proc; exit $status"
+RUN chroot /srv/chroot /bin/bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y \
+  default-jdk \
+  gcc \
+  g++ \
+  ghc \
+  golang-go \
+  nodejs \
+  npm \
+  python3 \
+  racket \
+  ruby \
+  rustc"
 
 RUN chroot /srv/chroot /bin/bash -c "ln -s /usr/bin/python3 /usr/bin/python"
 
