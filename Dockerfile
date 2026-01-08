@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y \
     debootstrap \
     && apt-get clean
 
-RUN debootstrap stable /srv/chroot https://deb.debian.org/debian
+RUN debootstrap testing /srv/chroot https://deb.debian.org/debian
 
 # Programs
 RUN chroot /srv/chroot /bin/bash -c "apt-get update && apt-get install -y \
@@ -66,9 +66,8 @@ WORKDIR /var/www/demonic-server/
 
 COPY . .
 
-RUN RUN NODE_OPTIONS=--openssl-legacy-provider npm install
+RUN npm install
 
 EXPOSE 8181
 
 CMD ["npm", "run", "start"]
-
