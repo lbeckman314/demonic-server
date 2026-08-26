@@ -45,7 +45,7 @@ RUN chroot /srv/chroot /bin/bash -c "DEBIAN_FRONTEND=noninteractive apt-get inst
 
 RUN chroot /srv/chroot /bin/bash -c "apt-get install -y curl"
 
-RUN chroot /srv/chroot /bin/bash -c "curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | BOOTSTRAP_HASKELL_NONINTERACTIVE=1 sh"
+#RUN chroot /srv/chroot /bin/bash -c "curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | BOOTSTRAP_HASKELL_NONINTERACTIVE=1 sh"
 
 RUN chroot /srv/chroot /bin/bash -c "curl -s https://get.sdkman.io | bash && source "/root/.sdkman/bin/sdkman-init.sh && sdk install java"
 
