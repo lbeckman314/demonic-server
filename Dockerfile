@@ -1,4 +1,4 @@
-FROM ubuntu:latest AS chroot-builder
+FROM ubuntu:24.04 AS chroot-builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y \
     debootstrap \
     && apt-get clean
 
-RUN debootstrap testing /srv/chroot https://deb.debian.org/debian
+RUN debootstrap stable /srv/chroot https://deb.debian.org/debian
 
 # Programs
 RUN chroot /srv/chroot /bin/bash -c "apt-get update && apt-get install -y \
