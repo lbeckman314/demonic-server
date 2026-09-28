@@ -8,8 +8,40 @@
 #       default: true
 #
 # file: File extension of the language (e.g. 'c', 'cpp', 'rs').
+#
+# limits: Resource limits for this program or language. Any key given here
+#         overrides the top-level 'limits' default; keys left out inherit it.
 
-sandbox: firejail --quiet --hostname=demonic --private --private-tmp --chroot=/srv/chroot --env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games --env=LC_ALL=en_US.UTF-8 sh -c
+# Firejail is the only security boundary. The program/language names above are
+# a convenience, not an allowlist: anything reachable from 'bash' (or a shell
+# expansion such as $(...), `...`, &&) runs too, so every restriction must be
+# enforced here. The command itself is appended as: sh -c '<cmd>'.
+sandbox:
+  - firejail
+  - --quiet
+  - --hostname=demonic
+  - --private
+  - --private-tmp
+  - --chroot=/srv/chroot
+  - --net=none
+  - --noroot
+  - --caps.drop=all
+  - --seccomp
+  - --nonewprivs
+  - --env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games
+  - --env=LC_ALL=en_US.UTF-8
+
+# Default resource limits, passed to Firejail as --rlimit-nproc, --rlimit-as,
+# --rlimit-fsize and --timeout. Sizes accept K, M and G suffixes.
+#   nproc:   max processes/threads (stops fork bombs)
+#   as:      max address space (virtual memory) per process
+#   fsize:   max size of any file written
+#   timeout: wall-clock limit for the whole sandbox (hh:mm:ss)
+limits:
+  nproc: 64
+  as: 512M
+  fsize: 16M
+  timeout: "00:10:00"
 
 root: /srv/chroot
 
@@ -63,10 +95,14 @@ langs:
   go:
     ext: go
     cmd: go run <path>.go
+    limits:
+      as: 3G   # the Go runtime reserves ~2G of address space up front
 
   haskell:
     ext: hs
     cmd: ghci <path>.hs
+    limits:
+      as: 2G
 
   java:
     ext: java
@@ -78,6 +114,8 @@ langs:
       - cd $NEW_PATH
       - javac $CLASS.java
       - java $CLASS
+    limits:
+      as: 4G   # the JVM reserves heap + class space up front
 
   javascript:
     ext: js
@@ -100,6 +138,8 @@ langs:
     cmd:
       - rustc -o <path> <path>.rs
       - <path>
+    limits:
+      as: 2G
 
   shell:
     ext: sh

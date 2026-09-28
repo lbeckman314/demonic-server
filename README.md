@@ -103,9 +103,77 @@ user @ demonic >
 | `err`     | String    | STDERR of the spawned process.                                                   | `SyntaxError: EOL while scanning string literal` |
 | `loading` | Boolean   | Informs client that process is ongoing and output is forthcoming.                | `true`                                           |
 
+# Security Model
+
+Every command runs inside a [Firejail](https://firejail.wordpress.com/) sandbox, and **Firejail is the only security boundary**. The program and language names in `src/process.yaml` decide what the prompt accepts, but they are not an allowlist: `bash` is available, and anything after `&&`, `$(...)` or backticks runs too. Assume a visitor can run any binary in the chroot.
+
+By default each sandbox gets:
+
+| Firejail option                    | Effect                                                   |
+| -                                  | -                                                        |
+| `--chroot=/srv/chroot`             | Debian root filesystem, separate from the server's.      |
+| `--private`, `--private-tmp`       | Empty, throwaway home directory and `/tmp`.              |
+| `--net=none`                       | No network interfaces except loopback.                   |
+| `--noroot`, `--caps.drop=all`      | No root user and no capabilities.                        |
+| `--seccomp`, `--nonewprivs`        | Default syscall filter; setuid binaries cannot gain privileges. |
+| `--rlimit-nproc`, `--rlimit-as`, `--rlimit-fsize` | Process count, memory and file size limits (see `limits` below). |
+| `--timeout`                        | Wall-clock limit for the whole sandbox.                  |
+
+On startup the server runs a sandboxed self-test and refuses to start unless the command really ran inside the chroot. The test looks for the marker file `/etc/demonic-chroot`, which must exist in the chroot and must not exist on the host. This matters inside Docker, where Firejail silently runs commands **without any sandbox** unless the environment variable `container=docker` is set. The Dockerfile sets it.
+
+# Running with Docker
+
+Firejail needs to create namespaces, so the container must be privileged. Also cap the container's memory and process count as a backstop for everything running inside it:
+
+```sh
+docker build -t demonic-server .
+docker run -d -p 8181:8181 --privileged --memory 4g --pids-limit 1024 demonic-server
+```
+
+# Configuration (`src/process.yaml`)
+
+| Key       | Description |
+| -         | -           |
+| `sandbox` | List of Firejail arguments. The command is appended as `sh -c '<cmd>'`. |
+| `limits`  | Default resource limits for every program and language (see below). |
+| `root`    | Path to the chroot on the host. |
+| `progs`   | Programs, keyed by the name typed at the prompt. |
+| `langs`   | Languages, keyed by the `lang` sent by the client. |
+
+Fields for each entry under `progs` or `langs`:
+
+| Field    | Applies to | Description |
+| -        | -          | -           |
+| `cmd`    | both       | Command to run. For programs, defaults to what the user typed. For languages, a string or list of commands; `<path>` is replaced with the path of the source file without its extension. |
+| `ext`    | langs      | File extension of the source file (e.g. `c`, `rs`). |
+| `draw`   | progs      | Set to `false` when the program draws the screen itself (e.g. vim). Default `true`. |
+| `limits` | both       | Overrides for any of the `limits` keys below. Keys not given inherit the top-level default. |
+
+`limits` keys:
+
+| Key       | Firejail option   | Default    | Description |
+| -         | -                 | -          | -           |
+| `nproc`   | `--rlimit-nproc`  | `64`       | Maximum number of processes and threads. |
+| `as`      | `--rlimit-as`     | `512M`     | Maximum address space (virtual memory) per process. Accepts `K`, `M` and `G`. Go, rustc and the JVM reserve large amounts up front and need more. |
+| `fsize`   | `--rlimit-fsize`  | `16M`      | Maximum size of any file written. |
+| `timeout` | `--timeout`       | `00:10:00` | Wall-clock limit for the sandbox (`hh:mm:ss`). |
+
+Example:
+
+```yaml
+langs:
+  rust:
+    ext: rs
+    cmd:
+      - rustc -o <path> <path>.rs
+      - <path>
+    limits:
+      as: 2G
+```
+
 # Sandbox Setup
 
-The sandbox is composed of a Debian (testing) chroot secured with Firejail.
+The sandbox is composed of a Debian (stable) chroot secured with Firejail.
 
 The following are instructions on how to set up the sandbox from a UNIX host (adapted from Firejail's [chroot documentation](https://firejail.wordpress.com/documentation/basic-usage/#chroot)).
 
@@ -138,6 +206,9 @@ locale-gen
 
 # Create non-root user to run programs.
 adduser demo
+
+# Marker file checked by the server's startup self-test.
+touch /etc/demonic-chroot
 
 # Exit sandbox.
 exit

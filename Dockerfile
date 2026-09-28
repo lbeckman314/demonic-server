@@ -53,9 +53,18 @@ RUN chroot /srv/chroot /bin/bash -c "ln -s /usr/bin/python3 /usr/bin/python"
 
 RUN chroot /srv/chroot /bin/bash -c "apt-get clean"
 
+# Marker checked by the server's startup self-test (see src/process.js) to
+# prove sandboxed commands really run inside the chroot.
+RUN touch /srv/chroot/etc/demonic-chroot
+
 FROM node:lts
 
 ENV DEBIAN_FRONTEND=noninteractive
+
+# Without this, Firejail 0.9.72 mistakes the Docker container for an existing
+# sandbox and runs every command on the container's root filesystem with no
+# sandboxing at all (the warning is hidden by --quiet).
+ENV container=docker
 
 RUN apt-get update && apt-get install -y \
     firejail \
