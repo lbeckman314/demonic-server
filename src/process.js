@@ -1,7 +1,6 @@
 const fs = require('fs');
 const yaml = require('js-yaml');
 const os = require('os');
-const path = require('path');
 const pty = require('node-pty');
 const { spawnSync } = require('child_process');
 
@@ -13,6 +12,9 @@ class Process {
         this.cmd = cmd;
     }
 }
+
+// An error whose message is safe to show to the visitor.
+class UserError extends Error {}
 
 const cfg = yaml.load(fs.readFileSync('src/process.yaml', 'utf8'));
 const sandboxCmd = Array.isArray(cfg.sandbox) ? cfg.sandbox : cfg.sandbox.split(' ');
@@ -107,47 +109,47 @@ for (let prog in cfg.progs) {
     processes.push(new Process(prog, spawnCmd));
 }
 
+// Snippets travel into the sandbox base64-encoded in this environment
+// variable (Firejail passes its environment through, while its own
+// arguments are capped at 4128 bytes). The kernel caps a single
+// environment string at 128 KiB, so keep the encoded code well under that.
+const MAX_CODE_BYTES = 64 * 1024;
+
 for (let lang in cfg.langs) {
     let langObj = cfg.langs[lang];
 
     const spawnCmd = (code) => {
-        // Create temporary directory to hold script files.
-        // e.g. the directory for a C script on a UNIX machine would be '/tmp/demonic-abc123/'.
-        // This directory would then have two files in it:
-        //   - the script: 'main.c'
-        //   - the executable: 'main'
-        let dir = fs.mkdtempSync(path.join(cfg.root, os.tmpdir(), 'demonic-'));
+        code = String(code == null ? '' : code);
+        if (Buffer.byteLength(code) > MAX_CODE_BYTES)
+            throw new UserError(`${lang}: code is larger than ${MAX_CODE_BYTES / 1024} KiB\n`);
 
-        // Create file with correct file extension and write code to file.
-        let exePath = path.join(dir, 'main');
-        let srcPath = exePath + '.' + langObj.ext;
-        fs.writeFileSync(srcPath, code);
-
+        // The sandbox writes the code into its own private /tmp (a tmpfs
+        // from --private-tmp), e.g. /tmp/demonic/main.c, and compiles or
+        // runs it from there. Nothing is written to the chroot, so
+        // --private-tmp or a read-only chroot cannot hide it. /tmp is used
+        // rather than the home directory because Firejail mounts the
+        // private home noexec, which would stop compiled programs running.
         let langCmd = langObj.cmd;
         if (Array.isArray(langCmd))
             langCmd = langCmd.join(';');
 
-        langCmd = langCmd.replace(/<path>/g, exePath.substr(cfg.root.length));
-        langCmd = langCmd.replace(/<dir>/g, dir.substr(cfg.root.length));
+        const dir = '/tmp/demonic';
+        langCmd = langCmd.replace(/<path>/g, `${dir}/main`);
+        langCmd = langCmd.replace(/<dir>/g, dir);
         langCmd = langCmd.replace(/<url>/g, cfg.url);
-        const spawnArgs = sandboxArgs(langObj, langCmd);
 
-        let opt = { env: sandboxEnv() };
+        const cmd = `mkdir -p ${dir} && cd ${dir} && printf %s "$DEMONIC_CODE" | base64 -d > main.${langObj.ext} ` +
+            `&& unset DEMONIC_CODE && { ${langCmd}; }`;
+        const spawnArgs = sandboxArgs(langObj, cmd);
 
-        let child = new pty.spawn(spawnArgs[0], spawnArgs.slice(1), opt);
+        const env = sandboxEnv();
+        env.DEMONIC_CODE = Buffer.from(code).toString('base64');
 
-        if (langObj.rm != false) {
-            child.on('exit', () => {
-                fs.rmdir(dir, { recursive: true }, (err) => {
-                    if (err) console.log(err);
-                })
-            });
-        }
-
-        return child;
+        return new pty.spawn(spawnArgs[0], spawnArgs.slice(1), { env });
     }
 
     processes.push(new Process(lang, spawnCmd));
 }
 
 module.exports = processes;
+module.exports.UserError = UserError;

@@ -1,6 +1,7 @@
 const WebSocket = require('ws');
 const server = require('./config.js');
 const processes = require('./process.js');
+const { UserError } = processes;
 
 const wss = new WebSocket.Server({ server });
 const port = process.argv[2] || 8181;
@@ -52,7 +53,15 @@ wss.on('connection', (ws) => {
             }
             send({draw: false});
 
-            child = program.cmd(obj.data);
+            try {
+                child = program.cmd(obj.data);
+            } catch (err) {
+                if (!(err instanceof UserError))
+                    console.log(err);
+                send({err: err instanceof UserError ? err.message : 'failed to start\n'});
+                send({exit: 1});
+                return;
+            }
             process = true;
         }
 

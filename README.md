@@ -144,10 +144,12 @@ Fields for each entry under `progs` or `langs`:
 
 | Field    | Applies to | Description |
 | -        | -          | -           |
-| `cmd`    | both       | Command to run. For programs, defaults to what the user typed. For languages, a string or list of commands; `<path>` is replaced with the path of the source file without its extension. |
+| `cmd`    | both       | Command to run. For programs, defaults to what the user typed. For languages, a string or list of commands run in `/tmp/demonic` inside the sandbox; `<path>` is replaced with `/tmp/demonic/main` (the source file is `<path>.<ext>`) and `<dir>` with `/tmp/demonic`. |
 | `ext`    | langs      | File extension of the source file (e.g. `c`, `rs`). |
 | `draw`   | progs      | Set to `false` when the program draws the screen itself (e.g. vim). Default `true`. |
 | `limits` | both       | Overrides for any of the `limits` keys below. Keys not given inherit the top-level default. |
+
+Language snippets are sent into the sandbox base64-encoded in the `DEMONIC_CODE` environment variable and written to `/tmp/demonic/main.<ext>` by the sandbox itself, so nothing is written to the chroot. Snippets are limited to 64 KiB.
 
 `limits` keys:
 
@@ -236,8 +238,8 @@ firejail --chroot=$CHROOT gcc --version
 | C          | gcc         |
 | C++        | g++         |
 | Go         | golang      |
-| Haskell    | ghi         |
-| Java       | default-jdk |
+| Haskell    | ghci (not in the Docker image) |
+| Java       | default-jdk (not in the Docker image) |
 | JavaScript | nodejs      |
 | Python     | python3     |
 | Racket     | racket      |
