@@ -14,6 +14,9 @@
 #      The program only gets a route to a proxy that allows those domains
 #      (see src/network.js).
 #
+# author, url, license: Optional attribution, sent to the client and shown
+#      while the program runs. url must be http:// or https://.
+#
 # limits: Resource limits for this program or language. Any key given here
 #         overrides the top-level 'limits' default; keys left out inherit it.
 

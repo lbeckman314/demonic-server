@@ -9,10 +9,35 @@ const network = require('./network.js');
 let processes = [];
 
 class Process {
-    constructor(name, cmd) {
+    constructor(name, cmd, meta) {
         this.name = name;
         this.cmd = cmd;
+        // Attribution sent to the client when the program starts, or null.
+        this.meta = meta;
     }
+}
+
+// Optional attribution for a program or language: author, url, license.
+// The URL must be http(s), since clients turn it into a link.
+function metadata(name, entry) {
+    const meta = {};
+    for (const key of ['author', 'license'])
+        if (entry[key] != null)
+            meta[key] = String(entry[key]);
+
+    if (entry.url != null) {
+        let url;
+        try {
+            url = new URL(String(entry.url));
+        } catch (err) {
+            throw new Error(`process.yaml: ${name}: invalid url '${entry.url}'`);
+        }
+        if (url.protocol != 'http:' && url.protocol != 'https:')
+            throw new Error(`process.yaml: ${name}: url must start with http:// or https://`);
+        meta.url = url.href;
+    }
+
+    return Object.keys(meta).length ? Object.assign({ name }, meta) : null;
 }
 
 // An error whose message is safe to show to the visitor.
@@ -219,7 +244,7 @@ for (let prog in cfg.progs) {
         return spawnSandbox(progObj, cmd, sandboxEnv(), dims);
     }
 
-    processes.push(new Process(prog, spawnCmd));
+    processes.push(new Process(prog, spawnCmd, metadata(prog, progObj)));
 }
 
 // Snippets travel into the sandbox base64-encoded in this environment
@@ -259,7 +284,7 @@ for (let lang in cfg.langs) {
         return spawnSandbox(langObj, cmd, env, dims);
     }
 
-    processes.push(new Process(lang, spawnCmd));
+    processes.push(new Process(lang, spawnCmd, metadata(lang, langObj)));
 }
 
 module.exports = processes;

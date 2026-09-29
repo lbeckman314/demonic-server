@@ -210,6 +210,8 @@ wss.on('connection', (ws, req) => {
                 return;
             }
             send({draw: false});
+            if (program.meta)
+                send({meta: program.meta});
 
             spawn(() => program.cmd(obj.data, dims));
             return;
@@ -284,6 +286,8 @@ wss.on('connection', (ws, req) => {
         // will do so.)
         if (!program.draw)
             send({draw: false});
+        if (program.meta)
+            send({meta: program.meta});
 
         spawn(() => program.cmd(cmd, dims));
     });

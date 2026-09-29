@@ -104,6 +104,7 @@ user @ demonic >
 | `out`     | String    | STDOUT of the spawned process.                                                   | `Wow, I'm in a language!`                        |
 | `err`     | String    | STDERR of the spawned process.                                                   | `SyntaxError: EOL while scanning string literal` |
 | `loading` | Boolean   | Informs client that process is ongoing and output is forthcoming.                | `true`                                           |
+| `meta`    | Object    | Attribution for the program that is starting: `name`, plus whichever of `author`, `url` and `license` its `process.yaml` entry sets. Only sent when at least one is set. Applies until the next `exit`. | `{"name": "pokeductor", "author": "Huseyn Teymurzade", "url": "https://github.com/Huseynteymurzade28/pokeductor", "license": "MIT"}` |
 
 # Security Model
 
@@ -169,6 +170,9 @@ Fields for each entry under `progs` or `langs`:
 | `ext`    | langs      | File extension of the source file (e.g. `c`, `rs`). |
 | `draw`   | progs      | Set to `false` when the program draws the screen itself (e.g. vim). Default `true`. |
 | `net`    | both       | Domains the program may reach over HTTP and HTTPS, e.g. `[pokeapi.co]`. `*.example.com` allows any subdomain of `example.com` (but not `example.com` itself). Default: no network. See [Network Access](#network-access). |
+| `author` | both       | Optional. Author of the program, shown by the client while it runs. |
+| `url`    | both       | Optional. Homepage of the program (must be `http://` or `https://`), linked by the client. |
+| `license`| both       | Optional. License of the program, e.g. `MIT`, shown by the client. |
 | `limits` | both       | Overrides for any of the `limits` keys below. Keys not given inherit the top-level default. |
 
 Language snippets are sent into the sandbox base64-encoded in the `DEMONIC_CODE` environment variable and written to `/tmp/demonic/main.<ext>` by the sandbox itself, so nothing is written to the chroot. Snippets are limited to 64 KiB.
