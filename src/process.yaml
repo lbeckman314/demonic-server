@@ -87,6 +87,15 @@ progs:
   vim:
     draw: false
 
+  # Terminal Pokédex. Fetches data from PokeAPI; its sprite URLs point at
+  # raw.githubusercontent.com.
+  pokeductor:
+    draw: false
+    net: [pokeapi.co, raw.githubusercontent.com]
+    author: Huseyn Teymurzade
+    url: https://github.com/Huseynteymurzade28/pokeductor
+    license: MIT
+
   bash:
     draw: false
 

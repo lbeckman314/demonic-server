@@ -87,6 +87,28 @@ RUN apt-get update && apt-get install -y \
 
 COPY --from=chroot-builder /srv/chroot /srv/chroot
 
+# pokeductor, a terminal Pokédex (https://github.com/Huseynteymurzade28/pokeductor,
+# MIT). Pinned release binary, verified against its SHA-256.
+ARG TARGETARCH
+ARG POKEDUCTOR_VERSION=v0.6.0
+RUN set -eu; \
+    case "$TARGETARCH" in \
+        amd64) triple=x86_64-unknown-linux-musl; \
+               sha256=dc032ad7c44d459237275273421f4b7c568478c43dc18422bf3168092b60a8a6 ;; \
+        arm64) triple=aarch64-unknown-linux-musl; \
+               sha256=dcf6fa86a28a93481b96909aecce1a8be4ec0a2e6c94917e317903b1f8edac01 ;; \
+        *) echo "pokeductor: unsupported architecture $TARGETARCH" >&2; exit 1 ;; \
+    esac; \
+    name=pokeductor-$POKEDUCTOR_VERSION-$triple; \
+    curl -fsSL -o /tmp/$name.tar.gz \
+        https://github.com/Huseynteymurzade28/pokeductor/releases/download/$POKEDUCTOR_VERSION/$name.tar.gz; \
+    echo "$sha256  /tmp/$name.tar.gz" | sha256sum -c -; \
+    tar -xzf /tmp/$name.tar.gz -C /tmp; \
+    install -m 755 /tmp/$name/pokeductor /srv/chroot/usr/local/bin/pokeductor; \
+    install -D -m 644 /tmp/$name/man/pokeductor.1 /srv/chroot/usr/local/share/man/man1/pokeductor.1; \
+    install -D -m 644 /tmp/$name/LICENSE /srv/chroot/usr/local/share/doc/pokeductor/LICENSE; \
+    rm -rf /tmp/$name /tmp/$name.tar.gz
+
 # Enable --chroot, and let the (non-root) sandbox users join the network
 # bridges of programs that opt in to network access (src/network.js).
 RUN sed -i -e 's/# chroot no/chroot yes/g' \

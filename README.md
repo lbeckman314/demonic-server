@@ -293,6 +293,7 @@ sudo -u demonic npm run start
 | fortune  | fortune-mod                    |
 | lolcat   | lolcat                         |
 | pipes.sh | github.com/pipeseroni/pipes.sh |
+| pokeductor | [github.com/Huseynteymurzade28/pokeductor](https://github.com/Huseynteymurzade28/pokeductor) v0.6.0 release binary (MIT). Network access to `pokeapi.co` and `raw.githubusercontent.com` (sprites). |
 | vim      | vim                            |
 
 ## Languages Installed
