@@ -19,6 +19,10 @@ const trustProxy = /^(1|true|yes)$/i.test(process.env.DEMONIC_TRUST_PROXY || '')
 // arguments anyway.
 const MAX_COMMAND_LENGTH = 4096;
 
+// Largest terminal size accepted from clients.
+const MAX_COLS = 1000;
+const MAX_ROWS = 500;
+
 if (allowedOrigins.length == 0)
     console.log('Warning: DEMONIC_ALLOWED_ORIGINS is not set; accepting connections from any origin.');
 
@@ -84,6 +88,9 @@ wss.on('connection', (ws, req) => {
     let program = {};
     let buffer = [];
     let obj = {};
+    // Terminal size of the client, used for new children and kept in sync
+    // with the running one.
+    const dims = { cols: 80, rows: 24 };
     // The one sandboxed process this session may have running, or null.
     let child = null;
 
@@ -141,6 +148,31 @@ wss.on('connection', (ws, req) => {
         }
     }
 
+    // Update the terminal size from a client message; resize the running
+    // child if it changed. Returns false if the message had no valid size.
+    const resize = (size) => {
+        const cols = parseInt(size && size.cols, 10);
+        const rows = parseInt(size && size.rows, 10);
+        if (!(cols >= 1 && rows >= 1))
+            return false;
+
+        const newCols = Math.min(cols, MAX_COLS);
+        const newRows = Math.min(rows, MAX_ROWS);
+        if (newCols == dims.cols && newRows == dims.rows)
+            return true;
+
+        dims.cols = newCols;
+        dims.rows = newRows;
+        if (child != null) {
+            try {
+                child.resize(dims.cols, dims.rows);
+            } catch (err) {
+                // The child may have exited between checks.
+            }
+        }
+        return true;
+    }
+
     ws.on('close', stopChild);
 
     ws.on('message', (msg) => {
@@ -152,6 +184,15 @@ wss.on('connection', (ws, req) => {
         if (obj == null || typeof obj != 'object')
             return;
         debug("obj:", obj);
+
+        // Resize: {resize: {cols, rows}}. Older clients instead send cols
+        // and rows with every message, which keeps working below.
+        if (obj.resize != null) {
+            resize(obj.resize);
+            return;
+        }
+        if (obj.cols != null || obj.rows != null)
+            resize(obj);
 
         // Language
         if (obj.lang != null) {
@@ -170,7 +211,7 @@ wss.on('connection', (ws, req) => {
             }
             send({draw: false});
 
-            spawn(() => program.cmd(obj.data));
+            spawn(() => program.cmd(obj.data, dims));
             return;
         }
 
@@ -183,6 +224,11 @@ wss.on('connection', (ws, req) => {
             child.write(obj.data);
             return;
         }
+
+        // Empty input (e.g. the placeholder 'data' clients add to resize
+        // messages for older servers) is not part of a command.
+        if (obj.data == '')
+            return;
 
         if (obj.data == '\u001b[2K\r') {
             buffer.length = 0;
@@ -238,11 +284,6 @@ wss.on('connection', (ws, req) => {
         // will do so.)
         if (!program.draw)
             send({draw: false});
-
-        const dims = {
-            cols: obj.cols,
-            rows: obj.rows,
-        }
 
         spawn(() => program.cmd(cmd, dims));
     });

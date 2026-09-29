@@ -230,7 +230,7 @@ const MAX_CODE_BYTES = 64 * 1024;
 for (let lang in cfg.langs) {
     let langObj = cfg.langs[lang];
 
-    const spawnCmd = (code) => {
+    const spawnCmd = (code, dims) => {
         code = String(code == null ? '' : code);
         if (Buffer.byteLength(code) > MAX_CODE_BYTES)
             throw new UserError(`${lang}: code is larger than ${MAX_CODE_BYTES / 1024} KiB\n`);
@@ -255,7 +255,7 @@ for (let lang in cfg.langs) {
         const env = sandboxEnv();
         env.DEMONIC_CODE = Buffer.from(code).toString('base64');
 
-        return spawnSandbox(langObj, cmd, env);
+        return spawnSandbox(langObj, cmd, env, dims);
     }
 
     processes.push(new Process(lang, spawnCmd));

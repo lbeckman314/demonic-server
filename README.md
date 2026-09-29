@@ -92,6 +92,8 @@ user @ demonic >
 | -       | -         | -                                                                   | -                                  |
 | `data`  | String    | The commands or code sent by the user to be evaulted by the server. | `print("Wow, I'm in a language!")` |
 | `lang`  | String    | What programming language to compile or interpret `data`. Stops any program or snippet this connection is already running. | `python`                           |
+| `resize` | Object   | New terminal size, `{cols, rows}`. Resizes the running program's terminal (so full-screen programs redraw) and sets the size for programs started later. Clients should also send `data: ""` so servers that predate `resize` ignore the message. | `{"cols": 120, "rows": 40}` |
+| `cols`, `rows` | Number | Terminal size, sent with other messages by older clients. Treated like `resize`. | `80`, `24` |
 
 ## Server to Client
 
