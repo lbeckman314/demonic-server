@@ -113,7 +113,7 @@ By default each sandbox gets:
 | -                                  | -                                                        |
 | `--chroot=/srv/chroot`             | Debian root filesystem, separate from the server's.      |
 | `--private`, `--private-tmp`, `--private-dev` | Empty, throwaway home directory, `/tmp` and `/dev`.  |
-| `--net=none`                       | No network interfaces except loopback.                   |
+| `--net=none`                       | No network interfaces except loopback (see [Network Access](#network-access) for programs that opt in). |
 | `--noroot`, `--caps.drop=all`      | No root user and no capabilities.                        |
 | `--seccomp`, `--nonewprivs`        | Default syscall filter; setuid binaries cannot gain privileges. |
 | `--rlimit-nproc`, `--rlimit-as`, `--rlimit-fsize` | Process count, memory and file size limits (see `limits` below). |
@@ -165,6 +165,7 @@ Fields for each entry under `progs` or `langs`:
 | `cmd`    | both       | Command to run. For programs, defaults to what the user typed. For languages, a string or list of commands run in `/tmp/demonic` inside the sandbox; `<path>` is replaced with `/tmp/demonic/main` (the source file is `<path>.<ext>`) and `<dir>` with `/tmp/demonic`. |
 | `ext`    | langs      | File extension of the source file (e.g. `c`, `rs`). |
 | `draw`   | progs      | Set to `false` when the program draws the screen itself (e.g. vim). Default `true`. |
+| `net`    | both       | Domains the program may reach over HTTP and HTTPS, e.g. `[pokeapi.co]`. `*.example.com` allows any subdomain of `example.com` (but not `example.com` itself). Default: no network. See [Network Access](#network-access). |
 | `limits` | both       | Overrides for any of the `limits` keys below. Keys not given inherit the top-level default. |
 
 Language snippets are sent into the sandbox base64-encoded in the `DEMONIC_CODE` environment variable and written to `/tmp/demonic/main.<ext>` by the sandbox itself, so nothing is written to the chroot. Snippets are limited to 64 KiB.
@@ -190,6 +191,28 @@ langs:
     limits:
       as: 2G
 ```
+
+# Network Access
+
+Programs run with `--net=none` unless their entry in `process.yaml` lists the domains they need:
+
+```yaml
+progs:
+  pokeductor:
+    net: [pokeapi.co, raw.githubusercontent.com]
+```
+
+Each distinct `net` list gets its own network, set up by `node src/network.js setup` (run as root by the Docker entrypoint before the server starts):
+
+- A Linux bridge `demonic-n<i>` with the address `10.200.<i>.1/24`. The program joins it with Firejail's `--net=demonic-n<i>`.
+- A [tinyproxy](https://tinyproxy.github.io/) listening only on `10.200.<i>.1:8888` that allows plain HTTP, and HTTPS (`CONNECT` to port 443), to exactly the listed domains. It refuses everything else with HTTP 403. The program finds it through `HTTP_PROXY`/`HTTPS_PROXY`/`http_proxy`/`https_proxy`.
+- nftables rules that let the bridge reach its own proxy and nothing else: no forwarding to the internet (IP forwarding is also turned off), no DNS, no other port on the host (including the demonic server itself), no other network's proxy, and no other sandbox on the same bridge.
+
+So a program can only reach the internet through the proxy, and only the listed domains. The proxy resolves names itself; sandboxes have no DNS. Because anything chained after the program's name (`pokeductor; bash`) runs in the same sandbox, treat every listed domain as reachable by any visitor.
+
+At startup the server checks, from inside a sandbox on each network, that the proxy is reachable and that a direct connection to the internet is not. If a network's bridge does not exist (for example `network.js setup` was not run), its programs run with `--net=none` and a warning is logged.
+
+Outside Docker, the setup needs `iproute2`, `nftables` and `tinyproxy`, and `restricted-network no` in `/etc/firejail/firejail.config` so the non-root sandbox users can join the bridges.
 
 # Sandbox Setup
 

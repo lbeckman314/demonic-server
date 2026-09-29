@@ -9,6 +9,11 @@
 #
 # file: File extension of the language (e.g. 'c', 'cpp', 'rs').
 #
+# net: List of domains the program may reach over HTTP/HTTPS, e.g.
+#      [pokeapi.co, '*.githubusercontent.com']. Default: no network at all.
+#      The program only gets a route to a proxy that allows those domains
+#      (see src/network.js).
+#
 # limits: Resource limits for this program or language. Any key given here
 #         overrides the top-level 'limits' default; keys left out inherit it.
 

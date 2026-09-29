@@ -1,6 +1,6 @@
 #!/bin/sh
-# Container entrypoint. Runs as root to prepare the sandbox, then drops to
-# the unprivileged demonic user to run the server.
+# Container entrypoint. Runs as root to prepare the sandbox and its
+# networks, then drops to the unprivileged demonic user to run the server.
 set -eu
 
 CHROOT=/srv/chroot
@@ -23,6 +23,9 @@ if touch "$CHROOT/.rw-test" 2>/dev/null; then
     echo "entrypoint: $CHROOT is still writable, refusing to start" >&2
     exit 1
 fi
+
+# Bridges, proxies and firewall rules for programs with network access.
+node src/network.js setup
 
 exec setpriv --reuid="$USER" --regid="$USER" --init-groups --inh-caps=-all \
     env HOME="$(getent passwd "$USER" | cut -d: -f6)" USER="$USER" "$@"

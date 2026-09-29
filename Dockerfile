@@ -78,13 +78,20 @@ ENV container=docker
 RUN apt-get update && apt-get install -y \
     firejail \
     g++ \
+    iproute2 \
     make \
+    nftables \
     sudo \
-    tini
+    tini \
+    tinyproxy
 
 COPY --from=chroot-builder /srv/chroot /srv/chroot
 
-RUN sed -i -e 's/# chroot no/chroot yes/g' /etc/firejail/firejail.config
+# Enable --chroot, and let the (non-root) sandbox users join the network
+# bridges of programs that opt in to network access (src/network.js).
+RUN sed -i -e 's/# chroot no/chroot yes/g' \
+        -e 's/^restricted-network yes/restricted-network no/' \
+        /etc/firejail/firejail.config
 
 # The server runs as the unprivileged demonic user, and each sandbox as one
 # of the pool of sandbox users. The server may only start Firejail as a pool

@@ -4,6 +4,7 @@ const os = require('os');
 const pty = require('node-pty');
 const { spawnSync } = require('child_process');
 const debug = require('./debug.js');
+const network = require('./network.js');
 
 let processes = [];
 
@@ -19,6 +20,12 @@ class UserError extends Error {}
 
 const cfg = yaml.load(fs.readFileSync('src/process.yaml', 'utf8'));
 const sandboxCmd = Array.isArray(cfg.sandbox) ? cfg.sandbox : cfg.sandbox.split(' ');
+const netProfiles = network.profiles(cfg);
+
+for (const p of netProfiles.values())
+    if (!network.isSetUp(p))
+        console.log(`Warning: network ${p.bridge} (${p.domains.join(', ')}) is not set up; ` +
+            'programs using it will run without network access. Run `node src/network.js setup` as root.');
 
 // Convert '512M' style sizes into bytes for Firejail's --rlimit-* options.
 function toBytes(size) {
@@ -30,11 +37,22 @@ function toBytes(size) {
 }
 
 // Build the full argv for a sandboxed command: firejail, its options, the
-// resource limits for this entry (merged over the top-level defaults), and
-// finally 'sh -c <cmd>'.
+// network for this entry, its resource limits (merged over the top-level
+// defaults), and finally 'sh -c <cmd>'.
 function sandboxArgs(entry, cmd) {
     const limits = Object.assign({}, cfg.limits, entry.limits);
-    const args = sandboxCmd.slice();
+    let args = sandboxCmd.slice();
+
+    // Programs with a `net` list join their network's bridge instead of
+    // --net=none, and reach the internet only through its proxy. If the
+    // network was not set up, they keep --net=none.
+    const profile = network.profileFor(netProfiles, '', entry);
+    if (profile && network.isSetUp(profile)) {
+        args = args.filter(arg => !arg.startsWith('--net='));
+        args.push(`--net=${profile.bridge}`);
+        for (const name of ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy'])
+            args.push(`--env=${name}=${profile.proxy}`);
+    }
 
     if (limits.nproc != null)
         args.push(`--rlimit-nproc=${limits.nproc}`);
@@ -142,10 +160,23 @@ function spawnSandbox(entry, cmd, env, dims) {
     return child;
 }
 
+// Run a script in a sandbox for 'entry' and fail if it prints a line
+// starting with 'FAIL:' or does not finish.
+function sandboxCheck(entry, script) {
+    const run = asSandboxUser(sandboxArgs(entry, script + '; echo demonic-sandbox-done'), sandboxEnv());
+    const res = spawnSync(run.args[0], run.args.slice(1), { env: run.env, encoding: 'utf8', timeout: 30000 });
+    releaseUser(run.user);
+    const out = (res.stdout || '') + (res.stderr || '');
+    if (res.error || !/demonic-sandbox-done/.test(out) || /FAIL:/.test(out))
+        throw new Error('sandbox self-test failed:\n' + (res.error || '') + out);
+}
+
 // Refuse to start unless a sandboxed command really runs inside the chroot,
 // as a non-root user, and cannot modify the chroot. Firejail can fall back
 // to running a command unsandboxed (see sandboxEnv), and --quiet hides the
 // warning, so check for a marker file that only exists in the chroot.
+// For each network, check that the proxy is reachable and the internet is
+// not.
 function selfTest() {
     const marker = '/etc/demonic-chroot';
     if (fs.existsSync(marker))
@@ -158,16 +189,18 @@ function selfTest() {
         ['! test -w /usr', '/usr is writable inside the sandbox'],
         [`! touch ${marker} 2>/dev/null`, 'the chroot is writable inside the sandbox'],
     ];
-    const script = `if test -e ${marker}; then ` +
+    sandboxCheck({}, `if test -e ${marker}; then ` +
         checks.map(([test, msg]) => `{ ${test} || echo 'FAIL: ${msg}'; }; `).join('') +
-        `else echo 'FAIL: command did not run inside the chroot'; fi; echo demonic-sandbox-done`;
+        `else echo 'FAIL: command did not run inside the chroot'; fi`);
 
-    const run = asSandboxUser(sandboxArgs({}, script), sandboxEnv());
-    const res = spawnSync(run.args[0], run.args.slice(1), { env: run.env, encoding: 'utf8', timeout: 30000 });
-    releaseUser(run.user);
-    const out = (res.stdout || '') + (res.stderr || '');
-    if (res.error || !/demonic-sandbox-done/.test(out) || /FAIL:/.test(out))
-        throw new Error('sandbox self-test failed:\n' + (res.error || '') + out);
+    for (const p of netProfiles.values()) {
+        if (!network.isSetUp(p))
+            continue;
+        const [host, port] = p.proxy.replace('http://', '').split(':');
+        sandboxCheck({ net: p.domains }, `bash -c '` +
+            `(exec 3<>/dev/tcp/${host}/${port}) 2>/dev/null || echo "FAIL: ${p.bridge}: proxy unreachable"; ` +
+            `timeout 3 bash -c "exec 3<>/dev/tcp/1.1.1.1/443" 2>/dev/null && echo "FAIL: ${p.bridge}: direct internet access"; true'`);
+    }
 }
 
 selfTest();
