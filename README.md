@@ -91,7 +91,7 @@ user @ demonic >
 | Keyword | Data Type | Description                                                         | Example                            |
 | -       | -         | -                                                                   | -                                  |
 | `data`  | String    | The commands or code sent by the user to be evaulted by the server. | `print("Wow, I'm in a language!")` |
-| `lang`  | String    | What programming language to compile or interpret `data`.           | `python`                           |
+| `lang`  | String    | What programming language to compile or interpret `data`. Stops any program or snippet this connection is already running. | `python`                           |
 
 ## Server to Client
 

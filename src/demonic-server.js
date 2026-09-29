@@ -80,11 +80,11 @@ wss.on('connection', (ws, req) => {
     }
 
     console.log('Client connected!');
-    let process = false;
     let program = {};
     let buffer = [];
     let obj = {};
-    let child = {};
+    // The one sandboxed process this session may have running, or null.
+    let child = null;
 
     const send = (data) => {
         try {
@@ -95,10 +95,52 @@ wss.on('connection', (ws, req) => {
         }
     }
 
-    ws.on('close', () => {
-        if (typeof child.kill == 'function')
-            child.kill();
-    });
+    // Kill the running child, if any. Its remaining output and exit event
+    // are ignored, so they cannot reach the client after a newer child
+    // has started.
+    const stopChild = () => {
+        if (child == null)
+            return;
+        const old = child;
+        child = null;
+        old.kill();
+    }
+
+    // Make 'newChild' the session's child and forward its output and exit
+    // status to the client.
+    const startChild = (newChild) => {
+        child = newChild;
+
+        newChild.onData((data) => {
+            if (child === newChild)
+                send({out: data});
+        });
+
+        // node-pty ignores the EIO it gets when the child exits, and throws
+        // other read errors unless something is listening for them.
+        newChild.on('error', (err) => console.log('pty error:', err.message));
+
+        newChild.onExit(({ exitCode }) => {
+            if (child !== newChild)
+                return;
+            child = null;
+            send({exit: exitCode});
+        });
+    }
+
+    // Run 'spawn' to start a new child, reporting failures to the client.
+    const spawn = (spawnFn) => {
+        try {
+            startChild(spawnFn());
+        } catch (err) {
+            if (!(err instanceof UserError))
+                console.log(err);
+            send({err: err instanceof UserError ? err.message : 'failed to start\n'});
+            send({exit: 1});
+        }
+    }
+
+    ws.on('close', stopChild);
 
     ws.on('message', (msg) => {
         try {
@@ -106,10 +148,16 @@ wss.on('connection', (ws, req) => {
         } catch(err) {
             return;
         }
+        if (obj == null || typeof obj != 'object')
+            return;
         console.log("DEBUG: obj:", obj)
 
         // Language
         if (obj.lang != null) {
+            // A new snippet replaces whatever this session was running.
+            stopChild();
+            buffer.length = 0;
+
             send({loading: 'true'});
 
             program = findProcess(obj.lang);
@@ -121,129 +169,87 @@ wss.on('connection', (ws, req) => {
             }
             send({draw: false});
 
-            try {
-                child = program.cmd(obj.data);
-            } catch (err) {
-                if (!(err instanceof UserError))
-                    console.log(err);
-                send({err: err instanceof UserError ? err.message : 'failed to start\n'});
-                send({exit: 1});
-                return;
-            }
-            process = true;
+            spawn(() => program.cmd(obj.data));
+            return;
         }
 
         // Program
-        else {
-            // If a child process is ongoing.
-            if (process) {
-                child.write(obj.data);
-                return;
+        if (typeof obj.data != 'string')
+            return;
+
+        // If a child process is ongoing, pass input through to it.
+        if (child != null) {
+            child.write(obj.data);
+            return;
+        }
+
+        if (obj.data == '\u001b[2K\r') {
+            buffer.length = 0;
+            return;
+        }
+
+        if (obj.data == '\f' || obj.data == '\u0015' ||
+            obj.data == '\u001b[A' || obj.data == '\u001b[B') {
+            return;
+        }
+
+        if (obj.data == '\r' && buffer.length == 0) {
+            send({exit: 1});
+            return;
+        }
+
+        // No process is ongoing, identify command and spawn process.
+        let cmd = addToBuffer(buffer, obj.data);
+
+        if (cmd == null)
+            return;
+
+        send({cmd: cmd});
+
+        let cmds = cmd.split(/[\|;]/);
+        let notFound = [];
+        let found = [];
+
+        for (const cmd of cmds) {
+            const name = cmd.trim().split(' ')[0]
+            program = findProcess(name);
+
+            if (program == null) {
+                notFound.push(name);
             }
-
-            if (typeof obj.data == 'undefined')
-                return;
-
-            if (obj.data == '\u001b[2K\r') {
-                buffer.length = 0;
-                return;
-            }
-
-            if (obj.data == '\f' || obj.data == '\u0015' ||
-                obj.data == '\u001b[A' || obj.data == '\u001b[B') {
-                return;
-            }
-
-            if (obj.data == '\r' && buffer.length == 0) {
-                send({exit: 1});
-                return;
-            }
-
-            // No process is ongoing, identify command and spawn process.
-            let cmd = addToBuffer(buffer, obj.data);
-
-            if (cmd == null)
-                return;
-
-            send({cmd: cmd});
-
-            let cmds = cmd.split(/[\|;]/);
-            let notFound = [];
-            let found = [];
-
-            for (const cmd of cmds) {
-                const name = cmd.trim().split(' ')[0]
-                program = findProcess(name);
-
-                if (program == null) {
-                    notFound.push(name);
-                }
-                else {
-                    found.push(program);
-                }
-            }
-
-            if (notFound.length > 0) {
-                for (const cmd of notFound)
-                    send({err: `${cmd}: command not found\n`});
-
-                send({exit: 1});
-                return;
-            }
-
-            program = found[0];
-
-            // If program has 'draw' attribute set to false,
-            // inform client not to write to terminal (the program
-            // will do so.)
-            if (!program.draw)
-                send({draw: false});
-
-            const dims = {
-                cols: obj.cols,
-                rows: obj.rows,
-            }
-
-            // Spawn child process and store reference in 'child' variable.
-            try {
-                child = program.cmd(cmd, dims);
-            } catch (err) {
-                if (!(err instanceof UserError))
-                    console.log(err);
-                send({err: err instanceof UserError ? err.message : 'failed to start\n'});
-                send({exit: 1});
-                return;
+            else {
+                found.push(program);
             }
         }
 
-        // STDOUT
-        child.on('data', (data) => {
-            try {
-                send({out: data});
-            } catch(err) {
-                console.log(err);
-            }
-        });
+        if (notFound.length > 0) {
+            for (const cmd of notFound)
+                send({err: `${cmd}: command not found\n`});
 
-        // STDERR
-        child.on('error', (data) => {
-            send({err: data});
-        });
+            send({exit: 1});
+            return;
+        }
 
-        // Exit Code
-        child.on('exit', (code) => {
-            const exit = {exit: code};
-            send(exit);
-            process = false;
-        });
+        program = found[0];
 
-        process = true;
+        // If program has 'draw' attribute set to false,
+        // inform client not to write to terminal (the program
+        // will do so.)
+        if (!program.draw)
+            send({draw: false});
+
+        const dims = {
+            cols: obj.cols,
+            rows: obj.rows,
+        }
+
+        spawn(() => program.cmd(cmd, dims));
     });
 });
 
 function addToBuffer(buffer, data) {
     if (data.charCodeAt(0) == 13) {
-        command = buffer.join('');
+        const command = buffer.join('');
         buffer.length = 0;
         return command;
     }

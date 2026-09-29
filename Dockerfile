@@ -79,7 +79,8 @@ RUN apt-get update && apt-get install -y \
     firejail \
     g++ \
     make \
-    sudo
+    sudo \
+    tini
 
 COPY --from=chroot-builder /srv/chroot /srv/chroot
 
@@ -107,6 +108,8 @@ COPY docker/entrypoint.sh /usr/local/bin/demonic-entrypoint
 EXPOSE 8181
 
 # The entrypoint starts as root only to mount the chroot read-only, then
-# drops to the demonic user to run the server.
-ENTRYPOINT ["/usr/local/bin/demonic-entrypoint"]
+# drops to the demonic user to run the server. tini runs as PID 1 to reap
+# processes orphaned when a sandbox is killed; otherwise they would stay as
+# zombies, since the server would be PID 1.
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/demonic-entrypoint"]
 CMD ["node", "src/demonic-server.js"]
