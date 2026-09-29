@@ -57,6 +57,15 @@ RUN chroot /srv/chroot /bin/bash -c "apt-get clean"
 # prove sandboxed commands really run inside the chroot.
 RUN touch /srv/chroot/etc/demonic-chroot
 
+# Sandboxed processes run as one of a pool of unprivileged users, one per
+# running sandbox, so that per-user limits such as RLIMIT_NPROC are not shared
+# between visitors. The pool must match the one created in the final stage
+# below, and its home directory must exist in the chroot (Firejail mounts a
+# private tmpfs over it).
+ARG SANDBOX_USERS=32
+COPY docker/add-sandbox-users.sh /usr/local/sbin/
+RUN /usr/local/sbin/add-sandbox-users.sh /srv/chroot ${SANDBOX_USERS}
+
 FROM node:lts
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -69,11 +78,23 @@ ENV container=docker
 RUN apt-get update && apt-get install -y \
     firejail \
     g++ \
-    make
+    make \
+    sudo
 
 COPY --from=chroot-builder /srv/chroot /srv/chroot
 
 RUN sed -i -e 's/# chroot no/chroot yes/g' /etc/firejail/firejail.config
+
+# The server runs as the unprivileged demonic user, and each sandbox as one
+# of the pool of sandbox users. The server may only start Firejail as a pool
+# user (docker/sudoers). The chroot and the server's own files stay owned by
+# root, so neither the server nor a visitor can modify them.
+ARG SANDBOX_USERS=32
+COPY docker/add-sandbox-users.sh /usr/local/sbin/
+RUN useradd --uid 10001 --create-home --shell /usr/sbin/nologin demonic && \
+    /usr/local/sbin/add-sandbox-users.sh / ${SANDBOX_USERS}
+COPY docker/sudoers /etc/sudoers.d/demonic
+RUN chmod 440 /etc/sudoers.d/demonic && visudo -c
 
 WORKDIR /var/www/demonic-server/
 
@@ -81,6 +102,11 @@ COPY . .
 
 RUN npm install
 
+COPY docker/entrypoint.sh /usr/local/bin/demonic-entrypoint
+
 EXPOSE 8181
 
-CMD ["npm", "run", "start"]
+# The entrypoint starts as root only to mount the chroot read-only, then
+# drops to the demonic user to run the server.
+ENTRYPOINT ["/usr/local/bin/demonic-entrypoint"]
+CMD ["node", "src/demonic-server.js"]

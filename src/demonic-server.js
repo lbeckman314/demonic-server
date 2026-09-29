@@ -137,7 +137,15 @@ wss.on('connection', (ws) => {
             }
 
             // Spawn child process and store reference in 'child' variable.
-            child = program.cmd(cmd, dims);
+            try {
+                child = program.cmd(cmd, dims);
+            } catch (err) {
+                if (!(err instanceof UserError))
+                    console.log(err);
+                send({err: err instanceof UserError ? err.message : 'failed to start\n'});
+                send({exit: 1});
+                return;
+            }
         }
 
         // STDOUT

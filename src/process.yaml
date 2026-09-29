@@ -22,6 +22,7 @@ sandbox:
   - --hostname=demonic
   - --private
   - --private-tmp
+  - --private-dev
   - --chroot=/srv/chroot
   - --net=none
   - --noroot

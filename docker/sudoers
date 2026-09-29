@@ -1,0 +1,5 @@
+# The server (demonic) may start Firejail, and nothing else, as any sandbox
+# user. Keep the variables the server passes to Firejail; sudo drops the rest.
+Defaults:demonic !use_pty, !lecture, !syslog, env_reset
+Defaults:demonic env_keep = "container DEMONIC_CODE LANG TERM COLORTERM"
+demonic ALL=(%demonic-sandbox) NOPASSWD: /usr/bin/firejail

@@ -112,14 +112,19 @@ By default each sandbox gets:
 | Firejail option                    | Effect                                                   |
 | -                                  | -                                                        |
 | `--chroot=/srv/chroot`             | Debian root filesystem, separate from the server's.      |
-| `--private`, `--private-tmp`       | Empty, throwaway home directory and `/tmp`.              |
+| `--private`, `--private-tmp`, `--private-dev` | Empty, throwaway home directory, `/tmp` and `/dev`.  |
 | `--net=none`                       | No network interfaces except loopback.                   |
 | `--noroot`, `--caps.drop=all`      | No root user and no capabilities.                        |
 | `--seccomp`, `--nonewprivs`        | Default syscall filter; setuid binaries cannot gain privileges. |
 | `--rlimit-nproc`, `--rlimit-as`, `--rlimit-fsize` | Process count, memory and file size limits (see `limits` below). |
 | `--timeout`                        | Wall-clock limit for the whole sandbox.                  |
 
-On startup the server runs a sandboxed self-test and refuses to start unless the command really ran inside the chroot. The test looks for the marker file `/etc/demonic-chroot`, which must exist in the chroot and must not exist on the host. This matters inside Docker, where Firejail silently runs commands **without any sandbox** unless the environment variable `container=docker` is set. The Dockerfile sets it.
+In addition:
+
+- **The chroot is read-only.** Visitors cannot change it for the next visitor. Firejail gives every sandbox its own private home, `/tmp`, `/var/tmp`, `/dev` and `/run` on top.
+- **Nothing runs as root.** The server runs as the unprivileged `demonic` user, and each running sandbox runs as its own user from a pool (`sandbox0`, `sandbox1`, ...; group `demonic-sandbox`). The kernel counts the process limit per user, so if every sandbox shared one user, a fork bomb in one would stop every other visitor's programs from starting. The server may start only Firejail as a pool user, through `sudo` (see `docker/sudoers`). The pool size is the maximum number of programs running at once; when it is used up, visitors are asked to try again.
+
+On startup the server runs a sandboxed self-test and refuses to start unless the command ran inside the chroot, as a non-root user, and could not write to the chroot. The test looks for the marker file `/etc/demonic-chroot`, which must exist in the chroot and must not exist on the host. This matters inside Docker, where Firejail silently runs commands **without any sandbox** unless the environment variable `container=docker` is set. The Dockerfile sets it.
 
 # Running with Docker
 
@@ -127,8 +132,10 @@ Firejail needs to create namespaces, so the container must be privileged. Also c
 
 ```sh
 docker build -t demonic-server .
-docker run -d -p 8181:8181 --privileged --memory 4g --pids-limit 1024 demonic-server
+docker run -d -p 8181:8181 --privileged --memory 4g --pids-limit 4096 demonic-server
 ```
+
+The image's entrypoint (`docker/entrypoint.sh`) starts as root only to bind-mount `/srv/chroot` read-only (with a tmpfs at `/srv/chroot/run` for Firejail's own state), then drops to the `demonic` user to run the server. The number of sandbox users is set at build time with `--build-arg SANDBOX_USERS=32`.
 
 # Configuration (`src/process.yaml`)
 
@@ -206,17 +213,34 @@ apt install locales
 sed -i 's/^# *\(en_US.UTF-8\)/\1/' /etc/locale.gen
 locale-gen
 
-# Create non-root user to run programs.
-adduser demo
-
 # Marker file checked by the server's startup self-test.
 touch /etc/demonic-chroot
 
 # Exit sandbox.
 exit
 
+# Create the server's user, and the pool of sandbox users with the same UIDs
+# inside and outside the chroot.
+sudo useradd --system --create-home demonic
+sudo ./docker/add-sandbox-users.sh $CHROOT 32
+sudo ./docker/add-sandbox-users.sh / 32
+
+# Let the server start Firejail (and nothing else) as a sandbox user.
+sudo install -m 440 docker/sudoers /etc/sudoers.d/demonic
+
+# Enable chroot support in Firejail.
+sudo sed -i -e 's/# chroot no/chroot yes/g' /etc/firejail/firejail.config
+
+# Make the chroot read-only (repeat at every boot, e.g. from /etc/fstab).
+sudo mount --bind $CHROOT $CHROOT
+sudo mount -t tmpfs -o mode=755,nosuid,nodev,noexec tmpfs $CHROOT/run
+sudo mount -o remount,bind,ro $CHROOT
+
 # Test Firejail chroot.
-firejail --chroot=$CHROOT gcc --version
+sudo -u demonic sudo -u sandbox0 firejail --chroot=$CHROOT --noroot gcc --version
+
+# Run the server as the demonic user.
+sudo -u demonic npm run start
 ```
 
 ## Programs Installed
