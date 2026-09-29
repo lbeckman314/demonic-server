@@ -139,7 +139,8 @@ function releaseUser(user) {
 // Spawn a sandboxed command in a pseudo-terminal.
 function spawnSandbox(entry, cmd, env, dims) {
     const run = asSandboxUser(sandboxArgs(entry, cmd), env);
-    const opt = { env: run.env };
+    // The pty's terminal type; the sandbox also sets TERM (process.yaml).
+    const opt = { env: run.env, name: 'xterm-256color' };
 
     if (dims && dims.cols)
         opt.cols = dims.cols;

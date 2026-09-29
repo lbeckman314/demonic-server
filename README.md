@@ -120,6 +120,7 @@ By default each sandbox gets:
 | `--seccomp`, `--nonewprivs`        | Default syscall filter; setuid binaries cannot gain privileges. |
 | `--rlimit-nproc`, `--rlimit-as`, `--rlimit-fsize` | Process count, memory and file size limits (see `limits` below). |
 | `--timeout`                        | Wall-clock limit for the whole sandbox.                  |
+| `--env=TERM=xterm-256color`, `--env=COLORTERM=truecolor` | Tell programs the terminal (xterm.js) supports 256 colours and 24-bit colour. |
 
 In addition:
 

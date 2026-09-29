@@ -36,6 +36,9 @@ sandbox:
   - --nonewprivs
   - --env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games
   - --env=LC_ALL=en_US.UTF-8
+  # xterm.js supports 256 colours and 24-bit colour.
+  - --env=TERM=xterm-256color
+  - --env=COLORTERM=truecolor
 
 # Default resource limits, passed to Firejail as --rlimit-nproc, --rlimit-as,
 # --rlimit-fsize and --timeout. Sizes accept K, M and G suffixes.
