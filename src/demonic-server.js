@@ -3,14 +3,82 @@ const server = require('./config.js');
 const processes = require('./process.js');
 const { UserError } = processes;
 
-const wss = new WebSocket.Server({ server });
+// Comma-separated origins allowed to connect, e.g.
+// DEMONIC_ALLOWED_ORIGINS=https://example.com,https://docs.example.com
+// Unset allows any origin; '*' does so explicitly.
+const allowedOrigins = (process.env.DEMONIC_ALLOWED_ORIGINS || '')
+    .split(',').map(o => o.trim().replace(/\/+$/, '')).filter(Boolean);
+const maxSessionsPerIp = parseInt(process.env.DEMONIC_MAX_SESSIONS_PER_IP || '3', 10);
+// Behind a reverse proxy every client appears to come from the proxy, so
+// optionally take the address from X-Forwarded-For instead. Only enable this
+// when the proxy sets the header, or clients can pick their own address.
+const trustProxy = /^(1|true|yes)$/i.test(process.env.DEMONIC_TRUST_PROXY || '');
+
+// Longest command line accepted at the prompt. Firejail rejects longer
+// arguments anyway.
+const MAX_COMMAND_LENGTH = 4096;
+
+if (allowedOrigins.length == 0)
+    console.log('Warning: DEMONIC_ALLOWED_ORIGINS is not set; accepting connections from any origin.');
+
+const sessionsPerIp = new Map();
+
+function clientIp(req) {
+    if (trustProxy && req.headers['x-forwarded-for'])
+        return req.headers['x-forwarded-for'].split(',')[0].trim();
+    return req.socket.remoteAddress;
+}
+
+function originAllowed(origin) {
+    if (allowedOrigins.length == 0 || allowedOrigins.includes('*'))
+        return true;
+    return allowedOrigins.includes(origin);
+}
+
+const wss = new WebSocket.Server({
+    server,
+    // Language snippets are capped at 64 KiB; leave room for JSON escaping.
+    maxPayload: 1024 * 1024,
+    verifyClient: ({ origin, req }, done) => {
+        if (!originAllowed(origin)) {
+            console.log(`Rejected connection from origin ${origin}`);
+            return done(false, 403, 'Origin not allowed');
+        }
+        if ((sessionsPerIp.get(clientIp(req)) || 0) >= maxSessionsPerIp)
+            return done(false, 429, 'Too many sessions');
+        done(true);
+    },
+});
 const port = process.argv[2] || 8181;
 server.listen(port);
 
 const proto = server.hasOwnProperty('cert') ? 'wss' : 'ws';
 console.log(`Waiting for clients at ${proto}://localhost:` + port);
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
+    // Count sessions per address. verifyClient already turned away most
+    // clients over the limit; this catches ones that raced past it.
+    const ip = clientIp(req);
+
+    // Protocol errors (oversized or malformed frames) are emitted here; ws
+    // closes the connection afterwards. Without a listener they would crash
+    // the whole server.
+    ws.on('error', (err) => console.log(`WebSocket error from ${ip}: ${err.message}`));
+
+    const sessions = (sessionsPerIp.get(ip) || 0) + 1;
+    sessionsPerIp.set(ip, sessions);
+    ws.on('close', () => {
+        const left = sessionsPerIp.get(ip) - 1;
+        if (left > 0)
+            sessionsPerIp.set(ip, left);
+        else
+            sessionsPerIp.delete(ip);
+    });
+    if (sessions > maxSessionsPerIp) {
+        ws.close(1013, 'Too many sessions');
+        return;
+    }
+
     console.log('Client connected!');
     let process = false;
     let program = {};
@@ -186,7 +254,7 @@ function addToBuffer(buffer, data) {
             buffer.push(lastElement.slice(0, -1));
     }
 
-    else
+    else if (buffer.join('').length < MAX_COMMAND_LENGTH)
         buffer.push(data);
 
     return null;

@@ -137,6 +137,16 @@ docker run -d -p 8181:8181 --privileged --memory 4g --pids-limit 4096 demonic-se
 
 The image's entrypoint (`docker/entrypoint.sh`) starts as root only to bind-mount `/srv/chroot` read-only (with a tmpfs at `/srv/chroot/run` for Firejail's own state), then drops to the `demonic` user to run the server. The number of sandbox users is set at build time with `--build-arg SANDBOX_USERS=32`.
 
+# Environment Variables
+
+| Variable                      | Default   | Description |
+| -                             | -         | -           |
+| `DEMONIC_ALLOWED_ORIGINS`     | (any)     | Comma-separated list of origins allowed to connect, e.g. `https://example.com,https://docs.example.com`. Connections from other origins, or with no `Origin` header, are refused with HTTP 403. When unset, any origin is accepted and a warning is logged. `*` accepts any origin explicitly. |
+| `DEMONIC_MAX_SESSIONS_PER_IP` | `3`       | Maximum concurrent WebSocket connections per client address. Further connections are refused with HTTP 429. |
+| `DEMONIC_TRUST_PROXY`         | off       | Set to `1` when running behind a reverse proxy, to take the client address from `X-Forwarded-For`. Only enable this if the proxy sets that header; otherwise clients can choose their own address. |
+
+Messages larger than 1 MiB close the connection, and command lines are limited to 4096 characters.
+
 # Configuration (`src/process.yaml`)
 
 | Key       | Description |
