@@ -143,6 +143,7 @@ The image's entrypoint (`docker/entrypoint.sh`) starts as root only to bind-moun
 | -                             | -         | -           |
 | `DEMONIC_ALLOWED_ORIGINS`     | (any)     | Comma-separated list of origins allowed to connect, e.g. `https://example.com,https://docs.example.com`. Connections from other origins, or with no `Origin` header, are refused with HTTP 403. When unset, any origin is accepted and a warning is logged. `*` accepts any origin explicitly. |
 | `DEMONIC_MAX_SESSIONS_PER_IP` | `3`       | Maximum concurrent WebSocket connections per client address. Further connections are refused with HTTP 429. |
+| `DEMONIC_DEBUG`               | off       | Set to `1` to log every message from clients and every command run. This includes everything visitors type and the code they send, so leave it off in production. |
 | `DEMONIC_TRUST_PROXY`         | off       | Set to `1` when running behind a reverse proxy, to take the client address from `X-Forwarded-For`. Only enable this if the proxy sets that header; otherwise clients can choose their own address. |
 
 Messages larger than 1 MiB close the connection, and command lines are limited to 4096 characters.

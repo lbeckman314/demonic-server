@@ -1,4 +1,5 @@
 const WebSocket = require('ws');
+const debug = require('./debug.js');
 const server = require('./config.js');
 const processes = require('./process.js');
 const { UserError } = processes;
@@ -150,7 +151,7 @@ wss.on('connection', (ws, req) => {
         }
         if (obj == null || typeof obj != 'object')
             return;
-        console.log("DEBUG: obj:", obj)
+        debug("obj:", obj);
 
         // Language
         if (obj.lang != null) {

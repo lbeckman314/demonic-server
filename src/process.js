@@ -3,6 +3,7 @@ const yaml = require('js-yaml');
 const os = require('os');
 const pty = require('node-pty');
 const { spawnSync } = require('child_process');
+const debug = require('./debug.js');
 
 let processes = [];
 
@@ -180,7 +181,7 @@ for (let prog in cfg.progs) {
         if (progObj.cmd)
             cmd = progObj.cmd.concat(' ', args.split(' ').slice(1).join(' '));
 
-        console.log("DEBUG: cmd: ", cmd);
+        debug("cmd:", cmd);
         return spawnSandbox(progObj, cmd, sandboxEnv(), dims);
     }
 
