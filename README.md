@@ -308,7 +308,6 @@ sudo -u demonic npm run start
 | Java       | default-jdk (not in the Docker image) |
 | JavaScript | nodejs      |
 | Python     | python3     |
-| Racket     | racket      |
 | Ruby       | ruby        |
 | Rust       | rustc       |
 

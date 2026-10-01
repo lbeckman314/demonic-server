@@ -1,30 +1,57 @@
+# Node.js image used to build the server's dependencies and to run it. Both
+# stages must use the same Node.js major version and Debian release, since
+# node-pty is compiled in one and loaded in the other.
+ARG NODE_VERSION=24
+ARG DEBIAN_RELEASE=bookworm
+
+# ---------------------------------------------------------------------------
+# The chroot that every sandbox runs in.
 FROM ubuntu:24.04 AS chroot-builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
     debootstrap \
     && apt-get clean
 
-RUN debootstrap stable /srv/chroot https://deb.debian.org/debian
+# minbase: only essential packages and apt; everything else is listed below.
+RUN debootstrap --variant=minbase stable /srv/chroot https://deb.debian.org/debian
+
+# Leave out documentation and translations (but keep man pages, since `man`
+# is available, and copyright files).
+RUN printf '%s\n' \
+        'path-exclude /usr/share/doc/*' \
+        'path-include /usr/share/doc/*/copyright' \
+        'path-exclude /usr/share/info/*' \
+        'path-exclude /usr/share/lintian/*' \
+        'path-exclude /usr/share/locale/*' \
+        > /srv/chroot/etc/dpkg/dpkg.cfg.d/01-demonic-nodoc
 
 # Programs
-RUN chroot /srv/chroot /bin/bash -c "apt-get update && apt-get install -y \
+RUN chroot /srv/chroot /bin/bash -c "apt-get update && apt-get install -y --no-install-recommends \
     bash \
+    ca-certificates \
     cmatrix \
-    cowsay \
     coreutils \
-    fortune \
+    cowsay \
+    curl \
+    fortune-mod \
     fortunes \
-    git \
+    less \
+    locales \
     lolcat \
-    locales\ 
-    make \
+    man-db \
+    passwd \
+    procps \
     vim"
 
-RUN chroot /srv/chroot /bin/bash -c "git clone https://github.com/pipeseroni/pipes.sh.git && \
-    cd pipes.sh && \
-    make install"
+# pipes.sh; git and make are only needed to install it.
+RUN chroot /srv/chroot /bin/bash -c "apt-get install -y --no-install-recommends git make && \
+    git clone --depth 1 https://github.com/pipeseroni/pipes.sh.git /tmp/pipes.sh && \
+    make -C /tmp/pipes.sh install && \
+    rm -rf /tmp/pipes.sh && \
+    apt-get purge -y --auto-remove git make"
 
 RUN chroot /srv/chroot /bin/bash -c "echo 'LC_ALL=en_US.UTF-8' >> /etc/environment && \
     echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen && \
@@ -32,18 +59,15 @@ RUN chroot /srv/chroot /bin/bash -c "echo 'LC_ALL=en_US.UTF-8' >> /etc/environme
     locale-gen en_US.UTF-8"
 
 # Languages
-RUN chroot /srv/chroot /bin/bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y \
-  gcc \
-  g++ \
-  golang-go \
-  nodejs \
-  npm \
-  python3 \
-  racket \
-  ruby \
-  rustc"
-
-RUN chroot /srv/chroot /bin/bash -c "apt-get install -y curl"
+RUN chroot /srv/chroot /bin/bash -c "apt-get install -y --no-install-recommends \
+    g++ \
+    gcc \
+    golang-go \
+    libc6-dev \
+    nodejs \
+    python3 \
+    ruby \
+    rustc"
 
 #RUN chroot /srv/chroot /bin/bash -c "curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | BOOTSTRAP_HASKELL_NONINTERACTIVE=1 sh"
 
@@ -51,7 +75,7 @@ RUN chroot /srv/chroot /bin/bash -c "apt-get install -y curl"
 
 RUN chroot /srv/chroot /bin/bash -c "ln -s /usr/bin/python3 /usr/bin/python"
 
-RUN chroot /srv/chroot /bin/bash -c "apt-get clean"
+RUN chroot /srv/chroot /bin/bash -c "apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/debconf/*-old /var/log/*.log"
 
 # Marker checked by the server's startup self-test (see src/process.js) to
 # prove sandboxed commands really run inside the chroot.
@@ -66,29 +90,18 @@ ARG SANDBOX_USERS=32
 COPY docker/add-sandbox-users.sh /usr/local/sbin/
 RUN /usr/local/sbin/add-sandbox-users.sh /srv/chroot ${SANDBOX_USERS}
 
-FROM node:lts
+# ---------------------------------------------------------------------------
+# The server's Node.js dependencies (node-pty is compiled here, so the final
+# image needs no compiler), and downloads for the chroot.
+FROM node:${NODE_VERSION}-${DEBIAN_RELEASE} AS server-builder
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Without this, Firejail 0.9.72 mistakes the Docker container for an existing
-# sandbox and runs every command on the container's root filesystem with no
-# sandboxing at all (the warning is hidden by --quiet).
-ENV container=docker
-
-RUN apt-get update && apt-get install -y \
-    firejail \
-    g++ \
-    iproute2 \
-    make \
-    nftables \
-    sudo \
-    tini \
-    tinyproxy
-
-COPY --from=chroot-builder /srv/chroot /srv/chroot
+WORKDIR /var/www/demonic-server/
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 
 # pokeductor, a terminal Pokédex (https://github.com/Huseynteymurzade28/pokeductor,
-# MIT). Pinned release binary, verified against its SHA-256.
+# MIT). Pinned release binary, verified against its SHA-256. Installed into
+# the chroot's /usr/local in the final stage.
 ARG TARGETARCH
 ARG POKEDUCTOR_VERSION=v0.6.0
 RUN set -eu; \
@@ -104,10 +117,35 @@ RUN set -eu; \
         https://github.com/Huseynteymurzade28/pokeductor/releases/download/$POKEDUCTOR_VERSION/$name.tar.gz; \
     echo "$sha256  /tmp/$name.tar.gz" | sha256sum -c -; \
     tar -xzf /tmp/$name.tar.gz -C /tmp; \
-    install -m 755 /tmp/$name/pokeductor /srv/chroot/usr/local/bin/pokeductor; \
-    install -D -m 644 /tmp/$name/man/pokeductor.1 /srv/chroot/usr/local/share/man/man1/pokeductor.1; \
-    install -D -m 644 /tmp/$name/LICENSE /srv/chroot/usr/local/share/doc/pokeductor/LICENSE; \
+    install -D -m 755 /tmp/$name/pokeductor /out/local/bin/pokeductor; \
+    install -D -m 644 /tmp/$name/man/pokeductor.1 /out/local/share/man/man1/pokeductor.1; \
+    install -D -m 644 /tmp/$name/LICENSE /out/local/share/doc/pokeductor/LICENSE; \
     rm -rf /tmp/$name /tmp/$name.tar.gz
+
+# ---------------------------------------------------------------------------
+# The server.
+FROM node:${NODE_VERSION}-${DEBIAN_RELEASE}-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Without this, Firejail 0.9.72 mistakes the Docker container for an existing
+# sandbox and runs every command on the container's root filesystem with no
+# sandboxing at all (the warning is hidden by --quiet).
+ENV container=docker
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    firejail \
+    iproute2 \
+    iptables \
+    nftables \
+    procps \
+    sudo \
+    tini \
+    tinyproxy \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=chroot-builder /srv/chroot /srv/chroot
+COPY --from=server-builder /out/local /srv/chroot/usr/local
 
 # Enable --chroot, and let the (non-root) sandbox users join the network
 # bridges of programs that opt in to network access (src/network.js).
@@ -128,9 +166,9 @@ RUN chmod 440 /etc/sudoers.d/demonic && visudo -c
 
 WORKDIR /var/www/demonic-server/
 
-COPY . .
-
-RUN npm install
+COPY --from=server-builder /var/www/demonic-server/node_modules ./node_modules
+COPY package.json LICENSE.md ./
+COPY src ./src
 
 COPY docker/entrypoint.sh /usr/local/bin/demonic-entrypoint
 

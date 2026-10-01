@@ -146,10 +146,6 @@ langs:
     ext: py
     cmd: python <path>.py
 
-  scheme:
-    ext: rkt
-    cmd: racket <path>.rkt
-
   ruby:
     ext: rb
     cmd: ruby <path>.rb

@@ -3,18 +3,17 @@
     "version": "0.1.2",
     "description": "Demonic server for running commands and code snippets in a sandboxed environment.",
     "license": "Apache-2.0",
-    "main": "demo-server.js",
+    "main": "src/demonic-server.js",
     "scripts": {
         "start": "node src/demonic-server.js",
         "watch": "nodemon src/demonic-server.js"
     },
     "dependencies": {
-        "bson": "^6.10.4",
-        "concat-stream": "^2.0.0",
         "js-yaml": "^4.1.1",
         "node-pty": "^1.1.0",
-        "nodemon": "^3.1.11",
-        "toml": "^3.0.0",
         "ws": "^8.19.0"
+    },
+    "devDependencies": {
+        "nodemon": "^3.1.11"
     }
 }
